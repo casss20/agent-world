@@ -638,4 +638,11 @@ function pauseAgent() {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new AgentWorld3D();
+    
+    // Initialize workflow panel (Ticket 8)
+    window.workflowPanel = new RoomWorkflowPanel(window.game);
+    
+    // Set current room when game loads
+    // In production, this would come from URL or navigation
+    window.workflowPanel.setCurrentRoom('demo-room-001');
 });
