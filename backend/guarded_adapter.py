@@ -31,7 +31,7 @@ from retry_guardrails import (
 from audit_guardrails import AuditContext, get_audit_store
 
 # Import original adapters
-from hybrid_adapter import MockChatDevEngine, RealChatDevEngine, HybridEngine
+from hybrid_adapter import MockChatDevEngine, RealChatDevEngine, HybridWorkflowAdapter
 
 
 # Configure structured logging
@@ -71,11 +71,14 @@ app.add_middleware(
 
 # Configuration
 USE_REAL_CHATDEV = os.getenv("USE_REAL_CHATDEV", "false").lower() == "true"
-CHATDEV_URL = os.getenv("CHATDEV_URL", "http://localhost:8000")
+CHATDEV_API_URL = os.getenv("CHATDEV_API_URL", "http://localhost:6400")
+
+# Set the environment variable for hybrid_adapter
+os.environ["CHATDEV_API_URL"] = CHATDEV_API_URL
 
 # Initialize engines
 mock_engine = MockChatDevEngine()
-real_engine = RealChatDevEngine(CHATDEV_URL) if USE_REAL_CHATDEV else None
+real_engine = RealChatDevEngine() if USE_REAL_CHATDEV else None
 
 # Request/Response models
 class LaunchRequest(BaseModel):

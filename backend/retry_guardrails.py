@@ -364,7 +364,7 @@ class WorkflowCancellation:
 
 
 # Global cancellation registry
-_cancellations: Dict[str, WorkflowCancellation] = {}
+_cancellations: dict[str, WorkflowCancellation] = {}
 
 
 def register_cancellation(run_id: str) -> WorkflowCancellation:

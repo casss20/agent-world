@@ -15,6 +15,9 @@ from enum import Enum
 
 import httpx
 
+# Import corrected ChatDev client
+from chatdev_client import ChatDevMoneyClient, create_chatdev_client
+
 # Configuration
 USE_REAL_CHATDEV = os.getenv("USE_REAL_CHATDEV", "false").lower() == "true"
 CHATDEV_API_URL = os.getenv("CHATDEV_API_URL", "http://localhost:8000")
@@ -80,68 +83,8 @@ class WorkflowRun:
         }
 
 
-class ChatDevClient:
-    """HTTP client for real ChatDev Money API"""
-    
-    def __init__(self):
-        self.client = httpx.AsyncClient(
-            base_url=CHATDEV_API_URL,
-            timeout=60.0,
-            headers={
-                "Authorization": f"Bearer {CHATDEV_API_KEY}" if CHATDEV_API_KEY else "",
-                "Content-Type": "application/json"
-            }
-        )
-    
-    async def execute_workflow(
-        self,
-        yaml_file: str,
-        task_prompt: str,
-        variables: Dict[str, Any],
-        session_name: str
-    ) -> Dict[str, Any]:
-        """Start a workflow in ChatDev Money"""
-        payload = {
-            "yaml_file": yaml_file,
-            "task_prompt": task_prompt,
-            "variables": variables,
-            "session_name": session_name,
-            "log_level": "INFO"
-        }
-        
-        try:
-            response = await self.client.post("/workflows/execute", json=payload)
-            response.raise_for_status()
-            result = response.json()
-            print(f"✅ ChatDev workflow started: {result.get('run_id', result.get('session_id'))}")
-            return result
-        except httpx.HTTPStatusError as e:
-            print(f"❌ ChatDev API error: {e.response.status_code}")
-            raise
-        except Exception as e:
-            print(f"❌ ChatDev connection error: {e}")
-            raise
-    
-    async def get_status(self, run_id: str) -> Dict[str, Any]:
-        """Get workflow status from ChatDev"""
-        try:
-            response = await self.client.get(f"/workflows/{run_id}/status")
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {"error": str(e), "status": "unknown"}
-    
-    async def cancel_workflow(self, run_id: str) -> bool:
-        """Cancel a workflow in ChatDev"""
-        try:
-            response = await self.client.post(f"/workflows/{run_id}/cancel")
-            return response.status_code == 200
-        except Exception as e:
-            print(f"❌ Cancel failed: {e}")
-            return False
-    
-    async def close(self):
-        await self.client.aclose()
+# Use the corrected client from chatdev_client module
+ChatDevClient = ChatDevMoneyClient
 
 
 class MockChatDevEngine:
