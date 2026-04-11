@@ -260,3 +260,264 @@ if __name__ == "__main__":
 | **Overall** | Architecture correct | **Needs proof** | **Pending validation** |
 
 **Next action:** Execute load test once OpenAI API credentials configured for ChatDev Money.
+
+---
+
+## Enhanced Requirements (Post-Research)
+
+**Sources:** MLJAR Deployment Readiness Chain, RadView Load Testing Guide, Merge.dev Polling Best Practices
+
+### Deployment Readiness Checklist (MLJAR)
+
+Before claiming 100+ workflow readiness, verify all 7 gates:
+
+| Gate | Requirement | Validation Method |
+|------|-------------|-------------------|
+| 1. Model Validation | Golden dataset outputs match ±1e-5 | Mock workflow deterministic output check |
+| 2. API Contract | Valid/invalid/edge/concurrent requests handled | `test_api_contract.py` |
+| 3. Load Testing | 5-min test at 2× expected peak (200 workflows), p99 within SLA, error rate <0.1% | `load_test_100.py` extended |
+| 4. Rollback Plan | Rollback to previous version in <5 minutes, verified in staging | Document + test |
+| 5. Monitoring | Dashboards: request rate, error rate, p50/p95/p99 latency, resource utilization | Grafana JSON |
+| 6. Runbook | Deployment steps, expected logs, verification, known issues, escalation path | `RUNBOOK.md` |
+| 7. Sign-off | Engineering + SRE + Product approval required | Checklist template |
+
+**Current Gap:** Gates 3, 4, 5, 6, 7 not yet implemented.
+
+### Load Testing Best Practices (RadView)
+
+**Downtime Cost Context:**
+- $300K-$5M per hour for enterprise outages
+- 90% of mid/large enterprises affected
+- False confidence from incomplete testing is worse than no testing
+
+**Requirements for Valid Load Test:**
+
+1. **Realistic Traffic Patterns** (Not Uniform Ramp)
+   - Variable concurrent users (burst patterns)
+   - Session duration distributions
+   - Request mix variations
+   - Geographic distribution simulation
+
+2. **Acceptance Thresholds Defined Before Testing**
+   - p99 latency SLA: 2000ms (warning), 5000ms (critical)
+   - Error rate: <0.1% (pass), >1% (fail)
+   - Memory growth: <10% over 30-min test
+   - CPU: <70% sustained
+
+3. **Dynamic Baselines**
+   - Minimum 8-12 load test runs to establish baseline
+   - 2 standard deviations from baseline = anomaly
+   - AI-assisted anomaly detection for trend analysis
+
+### Polling Optimization (Merge.dev)
+
+**Current:** 5-second fixed polling intervals
+
+**Optimized Approach:**
+
+| Data Change Frequency | Polling Interval | Rationale |
+|----------------------|------------------|-----------|
+| Workflow status (fast) | 2s initial, 5s after 30s, 10s after 2min | Exponential backoff |
+| Revenue tracking (slow) | 60s | Data changes infrequently |
+| Health checks | 30s with 5s caching | Reduce redundant calls |
+
+**Exponential Backoff on Errors:**
+```python
+# On 5xx errors: 1s → 2s → 4s → 8s → max 30s
+# On 429 rate limit: respect Retry-After header
+# On timeout: immediate retry once, then backoff
+```
+
+**Error Handling Workflow:**
+1. Classify error (transient vs persistent)
+2. Transient: exponential backoff retry
+3. Persistent: circuit breaker open, fallback to mock
+4. Alert on persistent errors after 3 failures
+
+### Webhook vs Polling Decision Matrix
+
+| Scenario | Recommendation | Implementation |
+|----------|---------------|----------------|
+| <50 workflows | Polling acceptable | Optimized intervals above |
+| 50-200 workflows | Hybrid (poll short, webhook long) | Short poll for first 30s, then webhook |
+| >200 workflows | Webhooks required | `/webhooks/chatdev/events` endpoint |
+| Real-time requirements | Webhooks only | <100ms delivery target |
+
+### CI/CD Integration (NIST DevOps Best Practices)
+
+**Shift-Left Performance Testing:**
+- Run micro-load test (50 concurrent) on every PR
+- Block merge if p95 latency >20% baseline
+- AI root-cause analysis on failure
+
+**Pipeline Configuration:**
+```yaml
+performance_gate:
+  trigger: merge_to_staging
+  test: 5_min_2x_peak_load
+  pass_criteria:
+    - p99_latency < 2000ms
+    - error_rate < 0.1%
+    - memory_stable: true
+  fail_action: block_promotion
+  notify: performance_engineer
+```
+
+### Bottleneck Classification (Salesforce AI Analysis Pattern)
+
+**Decision Matrix for Anomaly Classification:**
+
+| Symptom Combination | Classification | Likely Fix |
+|---------------------|----------------|------------|
+| CPU >85% + p99 >800ms | Compute-bound | Scale horizontally, optimize code |
+| DB query time >200ms for >5% requests | I/O-bound | Connection pooling, query optimization |
+| Packet loss >0.1% under load | Network-bound | Check network config, reduce payload size |
+| Thread pool exhaustion + 503 errors | Application-layer | Increase pool size, add queue |
+| Memory growth >10% over 30min | Memory leak | Profile, fix leak, restart |
+| SQLite queue depth >1000 | Database contention | Batch writes, add write replica |
+
+### Predictive Capacity Planning
+
+**AI Model Training Requirements:**
+- 8-12 load test runs with varied traffic profiles
+- 4-6 weeks production traffic data
+- Include failure scenarios, not just happy-path
+
+**Forecasting Outputs:**
+- Nonlinear inflection points (e.g., "latency spikes at 650 concurrent users")
+- Capacity ceiling predictions
+- Time-to-SLA-breach estimates
+
+**Infrastructure Cost Optimization:**
+- Target: 30-75% reduction in over-provisioned capacity
+- Method: Predictive scaling vs buffer-based provisioning
+
+### Updated Success Criteria (Stricter)
+
+#### Week 1 Validated ONLY If:
+- [ ] 8+ baseline runs completed
+- [ ] 5-minute sustained test at 200 workflows (2× target)
+- [ ] p99 latency <2000ms at 200 workflows
+- [ ] Error rate <0.1% (not <5%)
+- [ ] Memory stable (no growth >10% over 30min)
+- [ ] Recovery <30s after overload
+- [ ] Rollback procedure tested and documented
+- [ ] All 7 MLJAR gates pass
+
+#### Proceed to Phase 2 (Webhooks) If:
+- [ ] p99 >500ms at 100 workflows (polling overhead confirmed)
+- [ ] Adapter CPU >50% at 100 workflows
+- [ ] Connection pool exhaustion observed
+
+#### Skip to Phase 3 (Event Sourcing) If:
+- [ ] SQLite bottleneck at <150 workflows
+- [ ] PostgreSQL pool exhaustion
+- [ ] Write latency >50ms sustained
+
+### Risk-Weighted Coverage Strategy
+
+**Don't test everything. Test what matters:**
+
+| Priority | Endpoint/Flow | Coverage Level |
+|----------|--------------|----------------|
+| P0 | `/guarded/launch` | 100% - every test |
+| P0 | `/guarded/status/{id}` | 100% - every test |
+| P1 | `/guarded/cancel/{id}` | 20% - spot checks |
+| P1 | `/guarded/audit/{id}` | 20% - spot checks |
+| P2 | Revenue tracking | 10% - periodic |
+| P2 | Health endpoints | 5% - smoke tests |
+
+### Resource Checklist for Execution
+
+**Before Running Load Test:**
+- [ ] Dedicated test environment (not shared with dev)
+- [ ] Monitoring stack: Prometheus + Grafana
+- [ ] Log aggregation (centralized)
+- [ ] Alert channels configured (Slack/PagerDuty)
+- [ ] Rollback procedure documented and tested
+- [ ] Runbook created
+- [ ] Team on-call notified
+- [ ] Database backups current
+
+**During Test:**
+- [ ] Real-time dashboard visible
+- [ ] Log tail active
+- [ ] Kill switch ready (`pkill -f load_test`)
+- [ ] Resource metrics recording
+
+**After Test:**
+- [ ] Results archived with timestamp
+- [ ] Anomaly report generated
+- [ ] Bottleneck classification completed
+- [ ] Fix tickets created
+- [ ] Baseline updated if improved
+
+### Go/No-Go Decision Framework
+
+**GO Criteria (All Required):**
+1. All P0 flows pass at 200 workflows
+2. p99 latency <2000ms
+3. Error rate <0.1%
+4. No memory leaks detected
+5. Rollback tested and <5 minutes
+6. Monitoring dashboards confirmed working
+7. Runbook reviewed and approved
+
+**NO-GO Triggers (Any One):**
+1. p99 latency >5000ms
+2. Error rate >1%
+3. Memory growth >20%
+4. CPU saturation >90%
+5. Database connection pool exhaustion
+6. Circuit breakers firing consistently
+7. Recovery time >60 seconds
+
+**Conditional GO (With Mitigation):**
+- p99 2000-5000ms: Optimize before claiming 100+ readiness
+- Error rate 0.1-1%: Investigate root cause, retry test
+- Recovery 30-60s: Acceptable with documented workaround
+
+### Files to Create Before Production
+
+1. `test_api_contract.py` - API contract verification
+2. `RUNBOOK.md` - Deployment and incident response
+3. `grafana-dashboard.json` - Monitoring dashboards
+4. `alerts.yml` - AlertManager rules
+5. `rollback_test.sh` - Automated rollback verification
+6. `signoff_checklist.md` - Go/no-go sign-off template
+
+---
+
+## Summary: From Research to Practice
+
+**What Changes Based on Research:**
+
+| Aspect | Original Plan | Enhanced Plan |
+|--------|--------------|---------------|
+| Target load | 100 workflows | 200 workflows (2× peak) |
+| Test duration | Spot checks | 5-minute sustained |
+| Error threshold | <5% | <0.1% |
+| Success criteria | 4 metrics | 7 MLJAR gates |
+| Monitoring | Basic | Full Prometheus/Grafana |
+| Rollback | Not mentioned | <5min, tested, documented |
+| Baseline | Single run | 8-12 runs minimum |
+| Bottleneck diag | Ad-hoc | Structured classification |
+
+**Immediate Actions:**
+
+1. Extend `load_test_100.py` to 200 workflows, 5-minute sustained
+2. Add exponential backoff to polling logic
+3. Create API contract test suite
+4. Set up Prometheus + Grafana
+5. Document rollback procedure
+6. Create runbook template
+7. Schedule formal load test session
+
+**Research-Validated Assumptions:**
+- ✅ Connection pooling reduces latency (industry standard)
+- ✅ Batched writes reduce contention (documented pattern)
+- ⚠️ Polling becomes bottleneck at ~100 workflows (theoretical, needs proof)
+- ⚠️ Webhooks required for >200 workflows (common threshold)
+- ⚠️ 8-12 runs needed for reliable baseline (AI training requirement)
+
+**Key Insight:** Don't claim readiness without sustained load test, rollback verification, and monitoring in place. False confidence is worse than known gaps.
