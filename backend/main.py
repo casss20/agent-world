@@ -1,0 +1,329 @@
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional, Dict
+import asyncio
+import json
+import uuid
+from datetime import datetime
+import random
+
+app = FastAPI(title="Agent World", version="1.0")
+
+# CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Data Models
+class Agent(BaseModel):
+    id: str
+    name: str
+    role: str
+    status: str = "idle"  # idle, working, paused, error
+    room_id: Optional[str] = None
+    current_task: Optional[str] = None
+    progress: int = 0
+    logs: List[Dict] = []
+    avatar_color: str = "#00f3ff"
+    
+    class Config:
+        arbitrary_types_allowed = True
+
+class Room(BaseModel):
+    id: str
+    name: str
+    x: float
+    y: float
+    color: str = "#1a1c2c"
+    agents: List[str] = []
+
+class Task(BaseModel):
+    id: str
+    type: str
+    description: str
+    status: str = "pending"  # pending, active, completed, failed
+    assigned_to: Optional[str] = None
+    progress: int = 0
+    created_at: datetime = datetime.now()
+
+# In-memory storage (replace with PostgreSQL later)
+agents: Dict[str, Agent] = {}
+rooms: Dict[str, Room] = {}
+tasks: Dict[str, Task] = {}
+active_connections: List[WebSocket] = []
+
+# Initialize with some data
+def init_world():
+    # Create rooms
+    rooms["forge"] = Room(
+        id="forge",
+        name="The Forge",
+        x=-5,
+        y=0,
+        color="#ff6b35",
+        agents=[]
+    )
+    rooms["library"] = Room(
+        id="library", 
+        name="The Library",
+        x=5,
+        y=0,
+        color="#4ecdc4",
+        agents=[]
+    )
+    rooms["market"] = Room(
+        id="market",
+        name="The Market", 
+        x=0,
+        y=5,
+        color="#ffe66d",
+        agents=[]
+    )
+    
+    # Create initial agents
+    agent_colors = ["#00f3ff", "#ff006e", "#39ff14", "#ffb347", "#bf00ff"]
+    
+    for i in range(3):
+        agent_id = f"agent_{i+1}"
+        agents[agent_id] = Agent(
+            id=agent_id,
+            name=f"Agent {i+1}",
+            role=["Researcher", "Designer", "Writer"][i],
+            status="idle",
+            room_id="forge",
+            avatar_color=agent_colors[i]
+        )
+        rooms["forge"].agents.append(agent_id)
+
+init_world()
+
+# WebSocket Manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+    
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        # Send initial world state
+        await self.send_world_state(websocket)
+    
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+    
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                pass
+    
+    async def send_world_state(self, websocket: WebSocket):
+        await websocket.send_json({
+            "type": "world_init",
+            "agents": [a.dict() for a in agents.values()],
+            "rooms": [r.dict() for r in rooms.values()],
+            "tasks": [t.dict() for t in tasks.values()]
+        })
+
+manager = ConnectionManager()
+
+# Routes
+@app.get("/")
+async def root():
+    return {"message": "Agent World API", "agents": len(agents), "rooms": len(rooms)}
+
+@app.get("/api/agents")
+async def get_agents():
+    return list(agents.values())
+
+@app.get("/api/agents/{agent_id}")
+async def get_agent(agent_id: str):
+    if agent_id not in agents:
+        return {"error": "Agent not found"}
+    return agents[agent_id]
+
+@app.post("/api/agents/{agent_id}/move")
+async def move_agent(agent_id: str, room_id: str):
+    if agent_id not in agents or room_id not in rooms:
+        return {"error": "Invalid agent or room"}
+    
+    agent = agents[agent_id]
+    old_room = agent.room_id
+    
+    # Remove from old room
+    if old_room and old_room in rooms:
+        rooms[old_room].agents = [a for a in rooms[old_room].agents if a != agent_id]
+    
+    # Add to new room
+    agent.room_id = room_id
+    rooms[room_id].agents.append(agent_id)
+    
+    # Broadcast update
+    await manager.broadcast({
+        "type": "agent_moved",
+        "agent_id": agent_id,
+        "from_room": old_room,
+        "to_room": room_id
+    })
+    
+    return {"success": True}
+
+@app.post("/api/agents/{agent_id}/task")
+async def assign_task(agent_id: str, task_type: str, description: str):
+    if agent_id not in agents:
+        return {"error": "Agent not found"}
+    
+    task_id = str(uuid.uuid4())
+    task = Task(
+        id=task_id,
+        type=task_type,
+        description=description,
+        assigned_to=agent_id,
+        status="active"
+    )
+    tasks[task_id] = task
+    
+    agent = agents[agent_id]
+    agent.status = "working"
+    agent.current_task = task_id
+    agent.progress = 0
+    
+    # Start task simulation
+    asyncio.create_task(simulate_task(agent_id, task_id))
+    
+    await manager.broadcast({
+        "type": "task_assigned",
+        "agent_id": agent_id,
+        "task": task.dict()
+    })
+    
+    return {"task_id": task_id}
+
+@app.post("/api/agents/{agent_id}/pause")
+async def pause_agent(agent_id: str):
+    if agent_id not in agents:
+        return {"error": "Agent not found"}
+    
+    agents[agent_id].status = "paused"
+    await manager.broadcast({
+        "type": "agent_paused",
+        "agent_id": agent_id
+    })
+    return {"success": True}
+
+# WebSocket endpoint
+@app.websocket("/ws/world")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            if message.get("action") == "move_agent":
+                await move_agent(message["agent_id"], message["room_id"])
+            elif message.get("action") == "assign_task":
+                await assign_task(
+                    message["agent_id"],
+                    message["task_type"],
+                    message["description"]
+                )
+            elif message.get("action") == "spawn_agent":
+                await spawn_new_agent(message.get("name"), message.get("role"))
+                
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# Simulate agent work
+async def simulate_task(agent_id: str, task_id: str):
+    agent = agents[agent_id]
+    task = tasks[task_id]
+    
+    steps = [
+        "Analyzing requirements...",
+        "Gathering data...",
+        "Processing information...",
+        "Generating output...",
+        "Finalizing..."
+    ]
+    
+    for i, step in enumerate(steps):
+        if agent.status == "paused":
+            await asyncio.sleep(1)
+            continue
+            
+        agent.progress = (i + 1) * 20
+        agent.logs.append({
+            "timestamp": datetime.now().isoformat(),
+            "message": step,
+            "task_id": task_id
+        })
+        
+        await manager.broadcast({
+            "type": "agent_progress",
+            "agent_id": agent_id,
+            "progress": agent.progress,
+            "log": step
+        })
+        
+        await asyncio.sleep(random.uniform(1, 3))
+    
+    task.status = "completed"
+    agent.status = "idle"
+    agent.current_task = None
+    agent.progress = 0
+    
+    await manager.broadcast({
+        "type": "task_completed",
+        "agent_id": agent_id,
+        "task_id": task_id
+    })
+
+async def spawn_new_agent(name: str, role: str):
+    agent_id = f"agent_{len(agents) + 1}"
+    colors = ["#00f3ff", "#ff006e", "#39ff14", "#ffb347", "#bf00ff"]
+    
+    agent = Agent(
+        id=agent_id,
+        name=name or f"Agent {len(agents) + 1}",
+        role=role or "Assistant",
+        status="idle",
+        room_id="forge",
+        avatar_color=colors[len(agents) % len(colors)]
+    )
+    agents[agent_id] = agent
+    rooms["forge"].agents.append(agent_id)
+    
+    await manager.broadcast({
+        "type": "agent_spawned",
+        "agent": agent.dict()
+    })
+
+# Background simulation (agents do random things)
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(background_simulation())
+
+async def background_simulation():
+    while True:
+        await asyncio.sleep(10)
+        
+        # Random agent activity
+        for agent in agents.values():
+            if agent.status == "idle" and random.random() < 0.3:
+                # Agent does something idle
+                await manager.broadcast({
+                    "type": "agent_activity",
+                    "agent_id": agent.id,
+                    "message": f"{agent.name} is observing the {rooms[agent.room_id].name}"
+                })
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
