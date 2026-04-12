@@ -440,7 +440,7 @@ CONFIG = {
     "sla": {
         "p95_ms": 35000,     # 35s (real LLM takes time)
         "p99_ms": 45000,     # 45s
-        "error_rate": 0.01,  # 1%
+        "error_rate": 0.001, # 0.1% (enterprise standard)
         "cost_per_run_usd": 0.20
     }
 }
@@ -469,7 +469,7 @@ CONFIG = {
 
 - [ ] 100 workflows sustained for 30 minutes
 - [ ] p95 latency <35s (adjusted for real LLM)
-- [ ] Error rate <1%
+- [ ] **Error rate <0.1%** (enterprise standard)
 - [ ] Cost per run <$0.20
 - [ ] No memory leaks (stable over 30min)
 - [ ] Recovery from instance failure <30s
@@ -546,7 +546,7 @@ Ticket 5 (Stateless Refactor) ───┼──→ Ticket 6 (Load Balancer) ─
 3. 3 adapter instances load balanced
 4. 100 workflows sustained for 30 minutes
 5. p95 latency <35s (real LLM adjusted)
-6. Error rate <1%
+6. **Error rate <0.1%** (enterprise standard)
 7. Zero data loss during instance restart
 8. Documentation complete
 
