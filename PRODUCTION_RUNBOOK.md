@@ -2,45 +2,65 @@
 
 ---
 
-## Disaster Recovery
+## Phase 4: Feature Expansion
 
-### Backup Operations
+### Camofox Browser Integration
 
+**Purpose:** Anti-detection browser for agent web tasks
+
+**Services:**
+- `camofox` — Browser server on port 9377
+- `nginx` — Routes /camofox/* to camofox
+
+**Environment Variables:**
 ```bash
-# Create manual backup
-./scripts/backup_redis.sh backup
-
-# List available backups
-./scripts/backup_redis.sh list
-
-# Automated backups (cron)
-0 * * * * /root/.openclaw/workspace/agent-world/scripts/backup_redis.sh backup
+PROXY_HOST=
+PROXY_PORT=
+PROXY_USERNAME=
+PROXY_PASSWORD=
+CAMOFOX_API_KEY=
 ```
 
-### Restore Operations
+**Usage:**
+```python
+from camofox_client import CamofoxClient
 
-```bash
-# Restore from latest backup
-./scripts/restore_redis.sh latest
-
-# Restore from specific backup
-./scripts/restore_redis.sh file /var/backups/agentverse/redis/redis_backup_YYYYMMDD_HHMMSS.rdb.gz
-
-# List available backups
-./scripts/restore_redis.sh list
+client = CamofoxClient(base_url="http://localhost:9377")
+tab = await client.create_tab(user_id="agent1", url="https://reddit.com")
+snapshot = await client.get_snapshot(tab.id, user_id="agent1")
 ```
 
-### Recovery Objectives
+### Multica Integration
 
-| Objective | Target | Status |
-|-----------|--------|--------|
-| RTO | < 15 minutes | ✅ Tested |
-| RPO | < 1 hour | ✅ Hourly backups |
+**Purpose:** Agent team orchestration (task delegation, Kanban)
 
-### DR Test
+**Services:**
+- `multica-postgres` — Task database on port 5433
+- `multica` — API server on port 8081
+- `nginx` — Routes /multica/* to multica
+
+**Environment Variables:**
+```bash
+MULTICA_POSTGRES_USER=multica
+MULTICA_POSTGRES_PASSWORD=
+MULTICA_JWT_SECRET=
+```
+
+**Usage:**
+```python
+from multica_client import MulticaClient
+
+client = MulticaClient(base_url="http://localhost:8081")
+issue = await client.create_issue(
+    title="Create content",
+    assignee_id=agent_id
+)
+```
+
+### Testing
 
 ```bash
-# Validate DR readiness
-python3 backend/test_ticket5_dr.py
+# Phase 4 integration tests
+python3 backend/test_phase4_integration.py
 ```
 
