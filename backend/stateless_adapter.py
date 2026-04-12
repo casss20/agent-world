@@ -34,6 +34,10 @@ from metrics_exporter import (
     record_circuit_breaker_failure
 )
 
+# Import security (Ticket 3)
+from input_validation import LaunchRequest as ValidatedLaunchRequest, CancelRequest
+from security_headers import SecurityHeadersMiddleware, CORSSecurityMiddleware
+
 # Import original adapters
 from hybrid_adapter import MockChatDevEngine, RealChatDevEngine
 
@@ -70,6 +74,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add security headers middleware (Ticket 3)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Register webhook receiver
 app.include_router(webhook_receiver.router)
