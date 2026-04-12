@@ -60,7 +60,7 @@ export function GlobalHQ() {
       {/* Constitution Preview */}
       <section className="bg-gray-900 border border-gray-800 rounded-lg p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-cyan-400" /
+          <Shield className="w-5 h-5 text-cyan-400" />
           Constitutional Guardrails
         </h2>
         

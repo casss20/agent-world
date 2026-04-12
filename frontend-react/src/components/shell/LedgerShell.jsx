@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLedger } from '../providers/LedgerProvider';
+import { useLedger } from '../../providers/LedgerProvider';
 import { CommandBar } from './CommandBar';
 import { ApprovalQueue } from './ApprovalQueue';
 import { Crown, Activity, Building2, ChevronDown } from 'lucide-react';
