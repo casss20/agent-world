@@ -20,11 +20,11 @@ class AgentHealth(Enum):
 class AgentCapability:
     """Describes what an agent can do"""
     name: str
-    risk_level: str  # safe, medium, critical
-    requires_approval: bool
-    rate_limit: int  # calls per minute
-    dependencies: List[str]
-    estimated_duration: int  # seconds
+    risk_level: str = "safe"  # safe, medium, critical
+    requires_approval: bool = False
+    rate_limit: int = 100  # calls per minute
+    dependencies: List[str] = field(default_factory=list)
+    estimated_duration: int = 30  # seconds
 
 
 @dataclass
