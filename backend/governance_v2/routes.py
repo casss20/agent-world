@@ -3,7 +3,7 @@ Ledger 2.0 Governance API Routes
 FastAPI endpoints for all 4 phases WITH RBAC
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 from datetime import datetime
@@ -17,6 +17,16 @@ from .auth import (
     require_viewer,
     UserPrincipal,
     audit_log
+)
+
+# Import rate limiting
+from .rate_limit import (
+    rate_limit,
+    auth_rate_limit,
+    agent_register_rate_limit,
+    execute_rate_limit,
+    killswitch_rate_limit,
+    token_rate_limit
 )
 
 router = APIRouter(prefix="/governance/v2", tags=["governance-v2"])
@@ -103,7 +113,8 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-async def login(request: LoginRequest):
+@auth_rate_limit
+async def login(request: Request, login_request: LoginRequest):
     """
     Authenticate and obtain JWT token.
     
@@ -119,33 +130,35 @@ async def login(request: LoginRequest):
         "admin": ["admin", "governor", "operator", "viewer"]
     }
     
-    roles = role_hierarchy.get(request.role, ["viewer"])
+    roles = role_hierarchy.get(login_request.role, ["viewer"])
     
     token = create_token(
-        sub=request.username,
+        sub=login_request.username,
         roles=roles
     )
     
     # Audit log
     await audit_log(
         action="login",
-        actor=request.username,
+        actor=login_request.username,
         resource="/auth/login",
         result="success",
-        metadata={"role": request.role}
+        metadata={"role": login_request.role}
     )
     
     return TokenResponse(
         access_token=token,
         expires_in=24 * 3600,
-        role=request.role
+        role=login_request.role
     )
 
 
 # ============ Phase 1: Core Governance Routes ============
 
 @router.post("/execute")
+@execute_rate_limit
 async def execute_action(
+    req: Request,  # For rate limiting
     request: ExecuteActionRequest,
     user: UserPrincipal = Depends(require_governor),
     governance=Depends(get_governance_system)
@@ -280,7 +293,9 @@ async def emergency_kill(
 # ============ Phase 2: Orchestration Routes ============
 
 @router.post("/agents/register")
+@agent_register_rate_limit
 async def register_agent(
+    req: Request,  # For rate limiting
     request: AgentRegistrationRequest,
     user: UserPrincipal = Depends(require_operator),
     governance=Depends(get_governance_system)
@@ -533,7 +548,9 @@ async def list_kill_switches(
 
 
 @router.post("/killswitches/trigger")
+@killswitch_rate_limit
 async def trigger_kill_switch(
+    req: Request,  # For rate limiting
     request: KillSwitchTriggerRequest,
     user: UserPrincipal = Depends(require_admin),
     governance=Depends(get_governance_system)
