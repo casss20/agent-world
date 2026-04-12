@@ -112,8 +112,80 @@ services:
     depends_on:
       - prometheus
 
+  # Camofox Browser - Anti-detection browser server
+  camofox:
+    build:
+      context: ../camofox-browser
+      dockerfile: Dockerfile
+    image: camofox-browser:latest
+    restart: always
+    environment:
+      - CAMOFOX_PORT=9377
+      - MAX_SESSIONS=50
+      - MAX_TABS_PER_SESSION=10
+      - SESSION_TIMEOUT_MS=1800000
+      - BROWSER_IDLE_TIMEOUT_MS=300000
+      - PROXY_HOST=${PROXY_HOST:-}
+      - PROXY_PORT=${PROXY_PORT:-}
+      - PROXY_USERNAME=${PROXY_USERNAME:-}
+      - PROXY_PASSWORD=${PROXY_PASSWORD:-}
+      - CAMOFOX_API_KEY=${CAMOFOX_API_KEY:-}
+    volumes:
+      - camofox_cookies:/home/node/.camofox/cookies
+    ports:
+      - "9377:9377"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9377/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Multica PostgreSQL
+  multica-postgres:
+    image: pgvector/pgvector:pg17
+    restart: always
+    environment:
+      POSTGRES_DB: multica
+      POSTGRES_USER: ${MULTICA_POSTGRES_USER:-multica}
+      POSTGRES_PASSWORD: ${MULTICA_POSTGRES_PASSWORD:-multica}
+    volumes:
+      - multica_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U multica"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Multica Backend - Agent orchestration
+  multica:
+    build:
+      context: ../multica
+      dockerfile: Dockerfile
+    image: multica:latest
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://${MULTICA_POSTGRES_USER:-multica}:${MULTICA_POSTGRES_PASSWORD:-multica}@multica-postgres:5432/multica?sslmode=disable
+      - PORT=8081
+      - JWT_SECRET=${MULTICA_JWT_SECRET:-multica_jwt_secret}
+    ports:
+      - "8081:8081"
+    depends_on:
+      multica-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
 volumes:
   redis_data:
   prometheus_data:
   alertmanager_data:
   grafana_data:
+  camofox_cookies:
+  multica_pgdata:
