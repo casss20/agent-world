@@ -26,7 +26,9 @@ from .rate_limit import (
     agent_register_rate_limit,
     execute_rate_limit,
     killswitch_rate_limit,
-    token_rate_limit
+    token_rate_limit,
+    read_rate_limit,
+    modify_rate_limit
 )
 
 router = APIRouter(prefix="/governance/v2", tags=["governance-v2"])

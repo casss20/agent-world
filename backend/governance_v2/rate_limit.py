@@ -13,51 +13,61 @@ from datetime import datetime, timedelta
 # Structure: {key: [(timestamp, count), ...]}
 _rate_limit_store = {}
 
-# Rate limit configurations
+# Rate limit configurations - Production tiered by risk
 RATE_LIMITS = {
-    # Public endpoints - generous limits
-    "public": {"requests": 100, "window": 60},  # 100/minute
+    # Tier 1: High-risk actions - strict per-identity limits
+    "tier_1_execute": {"requests": 3, "window": 60},   # 3/minute per identity
+    "tier_1_token": {"requests": 3, "window": 60},     # 3/minute per identity
     
-    # Authentication - strict to prevent brute force
-    "auth": {"requests": 10, "window": 60},  # 10/minute
+    # Tier 2: Medium-risk mutations - per-IP limits
+    "tier_2_register": {"requests": 5, "window": 60},  # 5/minute per IP
+    "tier_2_modify": {"requests": 10, "window": 60},   # 10/minute per IP
     
-    # Agent registration - anti-spam
-    "agent_register": {"requests": 5, "window": 60},  # 5/minute
+    # Tier 3: Read operations - generous per-IP limits
+    "tier_3_read": {"requests": 60, "window": 60},     # 60/minute per IP
     
-    # Token issuance - moderate
-    "token": {"requests": 20, "window": 60},  # 20/minute
-    
-    # Execute actions - controlled
-    "execute": {"requests": 10, "window": 60},  # 10/minute
+    # Auth endpoints - strict to prevent brute force
+    "auth": {"requests": 5, "window": 60},              # 5/minute per IP
     
     # Kill switches - very strict (admin only but still protect)
-    "killswitch": {"requests": 5, "window": 300},  # 5 per 5 minutes
+    "killswitch": {"requests": 3, "window": 300},       # 3 per 5 minutes
     
-    # General API - default
-    "default": {"requests": 60, "window": 60},  # 60/minute
+    # Public endpoints - generous
+    "public": {"requests": 100, "window": 60},          # 100/minute per IP
+    
+    # Default fallback
+    "default": {"requests": 30, "window": 60},          # 30/minute per IP
 }
 
 
-def get_rate_limit_key(request: Request, identifier: Optional[str] = None) -> str:
+def get_rate_limit_key(request: Request, limit_type: str = "default", identifier: Optional[str] = None) -> str:
     """
-    Generate rate limit key based on request
+    Generate rate limit key based on request and tier
     
-    Uses:
-    1. Authenticated user ID if available
-    2. API key if provided
-    3. IP address as fallback
+    Tier 1 (execute, token): Per-identity (user ID from JWT)
+    Tier 2/3 (register, read): Per-IP address
     """
-    # Try to get user from request state (set by auth middleware)
-    user_id = None
-    if hasattr(request.state, 'user'):
-        user = request.state.user
-        if user and hasattr(user, 'sub'):
-            user_id = user.sub
+    # For Tier 1 (high-risk), use identity if available
+    if limit_type in ["tier_1_execute", "tier_1_token"]:
+        # Try to get user from request state (set by auth middleware)
+        user_id = None
+        if hasattr(request.state, 'user'):
+            user = request.state.user
+            if user and hasattr(user, 'sub'):
+                user_id = user.sub
+        
+        # Use user_id or fallback to IP + identifier
+        client_id = user_id or identifier or request.client.host if request.client else "unknown"
+        return f"{limit_type}:{request.method}:{request.url.path}:{client_id}"
     
-    # Use provided identifier or user_id or IP
-    client_id = identifier or user_id or request.client.host if request.client else "unknown"
+    # For Tier 2/3, use IP-based limiting
+    client_ip = request.client.host if request.client else "unknown"
     
-    return f"{request.method}:{request.url.path}:{client_id}"
+    # If identifier provided (e.g., API key), use that instead
+    if identifier:
+        return f"{limit_type}:{request.method}:{request.url.path}:{identifier}"
+    
+    return f"{limit_type}:{request.method}:{request.url.path}:{client_ip}"
 
 
 def is_rate_limited(key: str, limit_type: str = "default") -> tuple[bool, dict]:
@@ -137,8 +147,8 @@ def rate_limit(limit_type: str = "default"):
                 # No request object - skip rate limiting
                 return await func(*args, **kwargs)
             
-            # Get rate limit key
-            key = get_rate_limit_key(request)
+            # Get rate limit key (pass limit_type for tiered limiting)
+            key = get_rate_limit_key(request, limit_type)
             
             # Check rate limit
             is_limited, info = is_rate_limited(key, limit_type)
@@ -223,7 +233,7 @@ class RateLimitHeadersMiddleware:
 
 # Convenience decorators for common limit types
 def public_rate_limit(func: Callable) -> Callable:
-    """Rate limit for public endpoints"""
+    """Rate limit for public endpoints (Tier 3 equivalent)"""
     return rate_limit("public")(func)
 
 def auth_rate_limit(func: Callable) -> Callable:
@@ -231,20 +241,28 @@ def auth_rate_limit(func: Callable) -> Callable:
     return rate_limit("auth")(func)
 
 def agent_register_rate_limit(func: Callable) -> Callable:
-    """Rate limit for agent registration"""
-    return rate_limit("agent_register")(func)
+    """Rate limit for agent registration (Tier 2)"""
+    return rate_limit("tier_2_register")(func)
 
 def token_rate_limit(func: Callable) -> Callable:
-    """Rate limit for token issuance"""
-    return rate_limit("token")(func)
+    """Rate limit for token issuance (Tier 1)"""
+    return rate_limit("tier_1_token")(func)
 
 def execute_rate_limit(func: Callable) -> Callable:
-    """Rate limit for execute actions"""
-    return rate_limit("execute")(func)
+    """Rate limit for execute actions (Tier 1)"""
+    return rate_limit("tier_1_execute")(func)
 
 def killswitch_rate_limit(func: Callable) -> Callable:
     """Rate limit for kill switch operations"""
     return rate_limit("killswitch")(func)
+
+def read_rate_limit(func: Callable) -> Callable:
+    """Rate limit for read endpoints (Tier 3)"""
+    return rate_limit("tier_3_read")(func)
+
+def modify_rate_limit(func: Callable) -> Callable:
+    """Rate limit for modify endpoints (Tier 2)"""
+    return rate_limit("tier_2_modify")(func)
 
 
 # Cleanup function (call periodically to prevent memory growth)
