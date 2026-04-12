@@ -31,23 +31,108 @@ done
 
 ---
 
-### Phase 2: Health Checks (30 min) ⏳ PENDING
+### Phase 2: Health Checks (30 min) ✅ COMPLETE
+**Status:** Deployed
 
-**Endpoints to Add:**
-```python
-@app.get("/health/live")
-async def liveness_probe():
-    """Kubernetes liveness probe - is the process running?"""
-    return {"status": "alive"}
+**Endpoints:**
+- `GET /governance/v2/health/live` - Liveness probe
+- `GET /governance/v2/health/ready` - Readiness probe
+- `GET /governance/v2/health/startup` - Startup probe
+- `GET /governance/v2/health/deep` - Deep health check
 
-@app.get("/health/ready")
-async def readiness_probe():
-    """Kubernetes readiness probe - is the service ready for traffic?"""
-    checks = {
-        "database": check_db_connection(),
-        "governance": governance_system is not None,
-        "redis": check_redis_connection()  # if using Redis
-    }
+**Files:**
+- `governance_v2/health.py` - Health check implementation
+- `governance_v2/routes.py` - Router integration
+
+**Kubernetes Probes:**
+```yaml
+livenessProbe:
+  httpGet:
+    path: /governance/v2/health/live
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /governance/v2/health/ready
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+startupProbe:
+  httpGet:
+    path: /governance/v2/health/startup
+    port: 8000
+  failureThreshold: 30
+```
+
+**Test:**
+```bash
+curl http://localhost:8000/governance/v2/health/live
+curl http://localhost:8000/governance/v2/health/ready
+curl http://localhost:8000/governance/v2/health/deep
+```
+
+---
+
+### Phase 3: Nginx Reverse Proxy (1 hour) ✅ COMPLETE
+**Status:** Deployed
+
+**Configuration:**
+- TLS 1.2/1.3 termination
+- Security headers (HSTS, CSP, X-Frame-Options)
+- Rate limiting backup (per-endpoint zones)
+- Connection limiting
+- Request ID propagation
+- GeoIP blocking (optional)
+
+**Files:**
+- `nginx/nginx.conf` - Production Nginx config
+- `k8s/deployment.yaml` - Kubernetes deployment
+- `scripts/setup_nginx.sh` - Automated setup script
+
+**Nginx Rate Limits:**
+| Endpoint | Zone | Burst | Purpose |
+|----------|------|-------|---------|
+| `/auth/` | auth | 5 | Prevent brute force |
+| `/execute` | api | 3 | Tier 1 protection |
+| `/killswitches/` | api | 2 | Emergency controls |
+| `/governance/v2/` | api | 20 | General API |
+
+**Security Headers:**
+- `Strict-Transport-Security: max-age=31536000`
+- `X-Frame-Options: SAMEORIGIN`
+- `X-Content-Type-Options: nosniff`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+
+**Test:**
+```bash
+# Test HTTP -> HTTPS redirect
+curl -I http://localhost/governance/v2/health/live
+
+# Test HTTPS (with -k for self-signed)
+curl -k https://localhost/governance/v2/health/live
+
+# Check security headers
+curl -I -k https://localhost/governance/v2/health/live
+```
+
+**Deploy:**
+```bash
+# Run setup script
+sudo ./scripts/setup_nginx.sh
+
+# Or manual:
+sudo cp nginx/nginx.conf /etc/nginx/nginx.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+---
+
+### Phase 4: Audit Log Viewer (2 hours) ⏳ PENDING
     
     all_ready = all(checks.values())
     

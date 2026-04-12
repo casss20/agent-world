@@ -1,0 +1,241 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-world-governance
+  namespace: production
+  labels:
+    app: agent-world
+    component: governance
+    version: v2.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: agent-world
+      component: governance
+  template:
+    metadata:
+      labels:
+        app: agent-world
+        component: governance
+        version: v2.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      # Nginx reverse proxy
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: tls-certs
+          mountPath: /etc/nginx/ssl
+          readOnly: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /governance/v2/health/live
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /governance/v2/health/ready
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 5
+      
+      # FastAPI backend
+      - name: governance
+        image: your-registry/agent-world-governance:v2.0.0
+        ports:
+        - containerPort: 8000
+          name: api
+        env:
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: governance-secrets
+              key: jwt-secret
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: governance-secrets
+              key: database-url
+        - name: REDIS_URL
+          value: "redis://redis:6379/0"
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /governance/v2/health/live
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /governance/v2/health/ready
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 5
+        startupProbe:
+          httpGet:
+            path: /governance/v2/health/startup
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: tls-certs
+        secret:
+          secretName: tls-certs
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - agent-world
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-world-governance
+  namespace: production
+  labels:
+    app: agent-world
+    component: governance
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 443
+    protocol: TCP
+    name: https
+  selector:
+    app: agent-world
+    component: governance
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: production
+data:
+  nginx.conf: |
+    # See nginx/nginx.conf for full configuration
+    # This is a placeholder - use the full config from the file
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: governance-secrets
+  namespace: production
+type: Opaque
+stringData:
+  jwt-secret: "change-this-in-production"
+  database-url: "postgresql://user:pass@db:5432/governance"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tls-certs
+  namespace: production
+type: kubernetes.io/tls
+data:
+  tls.crt: "BASE64_ENCODED_CERT"
+  tls.key: "BASE64_ENCODED_KEY"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent-world-governance-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agent-world-governance
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
