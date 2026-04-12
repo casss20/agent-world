@@ -23,6 +23,17 @@ from audit_guardrails import AuditContext, get_audit_store
 # Import shared state (Ticket 5)
 from shared_state import get_shared_state, SharedState
 
+# Import metrics (Ticket 1)
+from metrics_exporter import (
+    get_metrics_response,
+    initialize_metrics,
+    record_workflow_start,
+    record_workflow_complete,
+    record_workflow_failure,
+    update_circuit_breaker_state,
+    record_circuit_breaker_failure
+)
+
 # Import original adapters
 from hybrid_adapter import MockChatDevEngine, RealChatDevEngine
 
@@ -299,6 +310,12 @@ async def list_runs():
     }
 
 
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint (Ticket 1)"""
+    return get_metrics_response()
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("ADAPTER_PORT", "8004"))
@@ -306,5 +323,8 @@ if __name__ == "__main__":
     print(f"Starting stateless adapter on port {port}")
     print(f"Instance ID: {INSTANCE_ID}")
     print(f"Engine mode: {'REAL' if USE_REAL_CHATDEV else 'MOCK'}")
+    
+    # Initialize metrics
+    initialize_metrics(INSTANCE_ID)
     
     uvicorn.run(app, host="0.0.0.0", port=port)

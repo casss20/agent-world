@@ -1,0 +1,66 @@
+# Prometheus Alert Rules
+# Ticket 2: Alerting
+
+groups:
+  - name: adapter_alerts
+    interval: 30s
+    rules:
+      # High latency alert
+      - alert: AdapterHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.endpoint }}"
+          description: "P95 latency is {{ $value }}s for {{ $labels.endpoint }}"
+
+      # Error rate alert
+      - alert: AdapterHighErrorRate
+        expr: rate(http_requests_total{status_code=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      # Instance down
+      - alert: AdapterInstanceDown
+        expr: up{job="adapter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Adapter instance down"
+          description: "Instance {{ $labels.instance }} is down"
+
+      # Circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker opened"
+          description: "{{ $labels.breaker_name }} is open"
+
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis connection lost"
+
+      # High active workflows (potential backlog)
+      - alert: HighActiveWorkflows
+        expr: active_workflows > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High active workflow count"
+          description: "{{ $value }} active workflows"

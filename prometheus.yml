@@ -1,0 +1,38 @@
+# Prometheus Configuration
+# Ticket 1: Observability Stack
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+scrape_configs:
+  # Self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # AgentVerse Adapter Instances
+  - job_name: 'adapter'
+    static_configs:
+      - targets:
+        - 'localhost:8004'
+        - 'localhost:8005'
+        - 'localhost:8006'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['localhost:9121']  # redis_exporter
+    scrape_interval: 15s
+
+  # Nginx
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['localhost:9113']  # nginx_exporter
+    scrape_interval: 15s
