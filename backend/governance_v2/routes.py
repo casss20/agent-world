@@ -624,3 +624,55 @@ async def health_check():
         "version": "2.0.0",
         "phases": ["core", "orchestration", "memory", "hardening"]
     }
+
+
+@router.get("/rate-limit/status")
+async def get_rate_limit_status_endpoint(
+    request: Request,
+    user: UserPrincipal = Depends(require_viewer)
+):
+    """
+    Get current rate limit status for all tiers.
+    
+    **Required Role:** any authenticated user
+    """
+    from .rate_limit import get_rate_limit_status, RATE_LIMITS
+    
+    # Get status for each tier
+    tiers = {
+        "tier_1_execute": "High-risk execute actions",
+        "tier_1_token": "Token issuance",
+        "tier_2_register": "Agent registration",
+        "tier_2_modify": "Modify operations",
+        "tier_3_read": "Read operations",
+        "auth": "Authentication",
+        "killswitch": "Kill switch operations"
+    }
+    
+    status = {}
+    for tier_key, description in tiers.items():
+        # Get key for this tier
+        if tier_key in ["tier_1_execute", "tier_1_token"]:
+            # Tier 1: per-identity
+            identifier = user.sub
+        else:
+            # Tier 2/3: per-IP
+            identifier = request.client.host if request.client else "unknown"
+        
+        from .rate_limit import get_rate_limit_key
+        key = get_rate_limit_key(request, tier_key, identifier)
+        tier_status = get_rate_limit_status(key, tier_key)
+        
+        status[tier_key] = {
+            "description": description,
+            "limit": tier_status["limit"],
+            "remaining": tier_status["remaining"],
+            "reset": tier_status["reset"],
+            "window_seconds": tier_status["window"]
+        }
+    
+    return {
+        "identity": user.sub,
+        "ip": request.client.host if request.client else "unknown",
+        "tiers": status
+    }
