@@ -15,6 +15,7 @@ from security_middleware import SecurityMiddleware
 from chatdev_workflow_routes import router as chatdev_router
 from ledger_routes import router as ledger_router
 from governance_v2.routes import router as governance_v2_router, set_governance_system
+from governance_v2.health import set_governance_system as set_health_governance
 
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
@@ -37,6 +38,7 @@ async def startup_event():
     # Initialize Ledger 2.0 governance system
     governance_system = LedgerGovernanceSystem(ledger_sovereign=None)
     set_governance_system(governance_system)  # Set for routes
+    set_health_governance(governance_system)  # Set for health checks
     await governance_system.start()
     print("✅ Ledger 2.0 Governance System initialized")
 

@@ -31,7 +31,13 @@ from .rate_limit import (
     modify_rate_limit
 )
 
+# Import health checks
+from . import health
+
 router = APIRouter(prefix="/governance/v2", tags=["governance-v2"])
+
+# Include health router (separate prefix for cleaner URLs)
+router.include_router(health.router, prefix="/health")
 
 # This will be set by main.py when including the router
 governance_system_instance = None
