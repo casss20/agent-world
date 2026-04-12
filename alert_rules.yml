@@ -1,5 +1,6 @@
 # Prometheus Alert Rules
 # Ticket 2: Alerting
+# Comprehensive alerting for AgentVerse Money Room
 
 groups:
   - name: adapter_alerts
@@ -11,9 +12,12 @@ groups:
         for: 5m
         labels:
           severity: warning
+          service: adapter
         annotations:
           summary: "High latency on {{ $labels.endpoint }}"
           description: "P95 latency is {{ $value }}s for {{ $labels.endpoint }}"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#high-latency"
+          action: "Check instance load and Redis connection"
 
       # Error rate alert
       - alert: AdapterHighErrorRate
@@ -21,9 +25,12 @@ groups:
         for: 2m
         labels:
           severity: critical
+          service: adapter
         annotations:
-          summary: "High error rate"
-          description: "Error rate is {{ $value | humanizePercentage }}"
+          summary: "High error rate on {{ $labels.instance }}"
+          description: "Error rate is {{ $value | humanizePercentage }} over last 5m"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#error-rate"
+          action: "Check logs for errors: tail -f /tmp/instance*.log"
 
       # Instance down
       - alert: AdapterInstanceDown
@@ -31,9 +38,12 @@ groups:
         for: 1m
         labels:
           severity: critical
+          service: adapter
         annotations:
-          summary: "Adapter instance down"
-          description: "Instance {{ $labels.instance }} is down"
+          summary: "Adapter instance {{ $labels.instance }} is down"
+          description: "Instance has been down for more than 1 minute"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#instance-down"
+          action: "Restart instance: ./start_load_balancer.sh"
 
       # Circuit breaker open
       - alert: CircuitBreakerOpen
@@ -41,19 +51,25 @@ groups:
         for: 1m
         labels:
           severity: warning
+          service: adapter
         annotations:
-          summary: "Circuit breaker opened"
-          description: "{{ $labels.breaker_name }} is open"
+          summary: "Circuit breaker {{ $labels.breaker_name }} is open"
+          description: "Circuit breaker has opened due to failures"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#circuit-breaker"
+          action: "Check downstream service health (ChatDev Money)"
 
       # Redis down
       - alert: RedisDown
-        expr: up{job="redis"} == 0
+        expr: up{job="redis"} == 0 or redis_connected_clients == 0
         for: 1m
         labels:
           severity: critical
+          service: redis
         annotations:
           summary: "Redis is down"
-          description: "Redis connection lost"
+          description: "Redis connection lost or no clients connected"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#redis"
+          action: "Check Redis: redis-cli ping && redis-server --daemonize yes"
 
       # High active workflows (potential backlog)
       - alert: HighActiveWorkflows
@@ -61,6 +77,35 @@ groups:
         for: 5m
         labels:
           severity: warning
+          service: adapter
         annotations:
           summary: "High active workflow count"
-          description: "{{ $value }} active workflows"
+          description: "{{ $value }} active workflows - possible backlog"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#workflow-backlog"
+          action: "Scale up instances or check ChatDev Money capacity"
+
+      # Memory usage high
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: adapter
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}MB"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#memory"
+          action: "Consider restarting instance or scaling horizontally"
+
+      # Workflow failure rate
+      - alert: WorkflowFailureRate
+        expr: rate(workflows_total{status="failed"}[5m]) / rate(workflows_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          service: adapter
+        annotations:
+          summary: "High workflow failure rate"
+          description: "{{ $value | humanizePercentage }} of workflows failing"
+          runbook_url: "https://github.com/casss20/agent-world/blob/arch/v2-multi-agent-platform/PRODUCTION_RUNBOOK.md#workflow-failures"
+          action: "Check ChatDev Money logs and OpenAI API status"
