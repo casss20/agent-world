@@ -1,12 +1,23 @@
 """
 Ledger 2.0 Governance API Routes
-FastAPI endpoints for all 4 phases
+FastAPI endpoints for all 4 phases WITH RBAC
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 from datetime import datetime
+
+# Import RBAC dependencies
+from .auth import (
+    get_current_user, 
+    require_admin, 
+    require_governor, 
+    require_operator,
+    require_viewer,
+    UserPrincipal,
+    audit_log
+)
 
 router = APIRouter(prefix="/governance/v2", tags=["governance-v2"])
 
@@ -80,7 +91,7 @@ class LoginRequest(BaseModel):
     """Login request"""
     username: str
     password: str
-    role: str  # viewer, operator, governor, admin
+    role: str = "operator"  # viewer, operator, governor, admin
 
 
 class TokenResponse(BaseModel):
@@ -97,36 +108,30 @@ async def login(request: LoginRequest):
     Authenticate and obtain JWT token.
     
     In production, validate against user database.
-    This is a simplified version for demonstration.
     """
-    # Import here to avoid circular imports
-    import sys
-    sys.path.insert(0, '/root/.openclaw/workspace/agent-world/backend')
-    from security_middleware import JWTHandler, audit_logger
+    from .auth import create_token
     
-    # TODO: Validate credentials against database
-    # For now, accept any username/password combo
+    # Map single role to list of inherited roles
+    role_hierarchy = {
+        "viewer": ["viewer"],
+        "operator": ["operator", "viewer"],
+        "governor": ["governor", "operator", "viewer"],
+        "admin": ["admin", "governor", "operator", "viewer"]
+    }
     
-    # Create token
-    from security_middleware import Role
-    try:
-        role = Role(request.role)
-    except ValueError:
-        role = Role.VIEWER
+    roles = role_hierarchy.get(request.role, ["viewer"])
     
-    token = JWTHandler.create_token(
-        subject=request.username,
-        role=role,
-        expiry_hours=24
+    token = create_token(
+        sub=request.username,
+        roles=roles
     )
     
     # Audit log
-    audit_logger.log(
+    await audit_log(
         action="login",
         actor=request.username,
         resource="/auth/login",
         result="success",
-        request_id=str(datetime.utcnow().timestamp()),
         metadata={"role": request.role}
     )
     
@@ -142,10 +147,13 @@ async def login(request: LoginRequest):
 @router.post("/execute")
 async def execute_action(
     request: ExecuteActionRequest,
+    user: UserPrincipal = Depends(require_governor),
     governance=Depends(get_governance_system)
 ):
     """
     Execute an action through the full governance pipeline.
+    
+    **Required Role:** governor or admin
     
     Pipeline includes:
     - Degradation check
@@ -155,6 +163,15 @@ async def execute_action(
     - Sandboxed execution
     - Event logging
     """
+    # Audit log the execution attempt
+    await audit_log(
+        action="execute_action",
+        actor=user.sub,
+        resource=f"agent:{request.agent_id}",
+        result="attempt",
+        metadata={"action": request.action, "roles": user.roles}
+    )
+    
     result = await governance.execute_action(
         agent_id=request.agent_id,
         action=request.action,
@@ -162,6 +179,16 @@ async def execute_action(
         context=request.context,
         use_sandbox=request.use_sandbox
     )
+    
+    # Audit log the result
+    await audit_log(
+        action="execute_action",
+        actor=user.sub,
+        resource=f"agent:{request.agent_id}",
+        result="success" if result.get("status") != "denied" else "denied",
+        metadata={"action": request.action}
+    )
+    
     return result
 
 
@@ -255,9 +282,14 @@ async def emergency_kill(
 @router.post("/agents/register")
 async def register_agent(
     request: AgentRegistrationRequest,
+    user: UserPrincipal = Depends(require_operator),
     governance=Depends(get_governance_system)
 ):
-    """Register an agent with the capability registry."""
+    """
+    Register an agent with the capability registry.
+    
+    **Required Role:** operator, governor, or admin
+    """
     from .phase2_orchestration import AgentRegistration, AgentCapability
     
     capabilities = [
@@ -274,10 +306,24 @@ async def register_agent(
     
     governance.registry.register(registration)
     
+    # Audit log
+    await audit_log(
+        action="register_agent",
+        actor=user.sub,
+        resource=f"agent:{request.agent_id}",
+        result="success",
+        metadata={
+            "agent_type": request.agent_type,
+            "business_id": request.business_id,
+            "roles": user.roles
+        }
+    )
+    
     return {
         "status": "registered",
         "agent_id": request.agent_id,
-        "capabilities": len(capabilities)
+        "capabilities": len(capabilities),
+        "registered_by": user.sub
     }
 
 
@@ -489,12 +535,26 @@ async def list_kill_switches(
 @router.post("/killswitches/trigger")
 async def trigger_kill_switch(
     request: KillSwitchTriggerRequest,
+    user: UserPrincipal = Depends(require_admin),
     governance=Depends(get_governance_system)
 ):
-    """Trigger an emergency kill switch."""
+    """
+    Trigger an emergency kill switch.
+    
+    **Required Role:** admin only
+    """
     success = governance.kill_switches.trigger(
         switch_name=request.switch_name,
         reason=request.reason
+    )
+    
+    # Audit log critical action
+    await audit_log(
+        action="trigger_killswitch",
+        actor=user.sub,
+        resource=f"killswitch:{request.switch_name}",
+        result="success" if success else "failed",
+        metadata={"reason": request.reason}
     )
     
     if not success:
@@ -503,7 +563,8 @@ async def trigger_kill_switch(
     return {
         "status": "triggered",
         "switch": request.switch_name,
-        "reason": request.reason
+        "reason": request.reason,
+        "triggered_by": user.sub
     }
 
 
