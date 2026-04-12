@@ -97,6 +97,33 @@ class MockChatDevEngine:
         self.runs: Dict[str, WorkflowRun] = {}
         self._client = None
     
+    async def execute_workflow(self, workflow_id: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute workflow (API expected by guarded_adapter).
+        Wraps start_workflow for compatibility.
+        """
+        ctx = ExecutionContext(
+            tenant_id=inputs.get("tenant_id", "default"),
+            project_id=inputs.get("project_id", "default"),
+            room_id=inputs.get("room_id", "default"),
+            workflow_id=workflow_id,
+            initiated_by_user_id=inputs.get("user_id", "system"),
+            credential_refs=[],
+            input_payload=inputs,
+            execution_limits={},
+            correlation_id=inputs.get("correlation_id", "no-correlation")
+        )
+        
+        run = await self.start_workflow(ctx)
+        
+        return {
+            "run_id": run.run_id,
+            "legacy_run_id": run.legacy_run_id,
+            "status": run.status,
+            "engine": run.engine,
+            "started_at": run.started_at.isoformat() if run.started_at else None
+        }
+    
     async def start_workflow(self, ctx: ExecutionContext) -> WorkflowRun:
         """Start simulated workflow execution"""
         run_id = f"run_{uuid.uuid4().hex[:8]}"

@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-04-12T00:32:19.950281Z",
+  "mode": "MOCK",
+  "target_workflows": 100,
+  "phase_results": [
+    {
+      "phase": "phase_10",
+      "n_workflows": 10,
+      "duration_seconds": 31.301862478256226,
+      "successful": 10,
+      "failed": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1163.102626800537,
+      "p95_ms": 1234.1818809509277,
+      "p99_ms": 1234.1818809509277,
+      "throughput_per_sec": 0.31946980812871695
+    },
+    {
+      "phase": "phase_25",
+      "n_workflows": 25,
+      "duration_seconds": 31.690991401672363,
+      "successful": 25,
+      "failed": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1365.1599884033203,
+      "p95_ms": 1508.512020111084,
+      "p99_ms": 1512.6056671142578,
+      "throughput_per_sec": 0.7888677158481299
+    },
+    {
+      "phase": "phase_50",
+      "n_workflows": 50,
+      "duration_seconds": 32.334041118621826,
+      "successful": 50,
+      "failed": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1695.0658559799194,
+      "p95_ms": 2017.087697982788,
+      "p99_ms": 2037.2648239135742,
+      "throughput_per_sec": 1.5463579023904932
+    },
+    {
+      "phase": "phase_100",
+      "n_workflows": 100,
+      "duration_seconds": 33.63974380493164,
+      "successful": 100,
+      "failed": 0,
+      "error_rate": 0.0,
+      "p50_ms": 2403.895854949951,
+      "p95_ms": 3141.7806148529053,
+      "p99_ms": 3273.3542919158936,
+      "throughput_per_sec": 2.972674244485175
+    }
+  ],
+  "final_assessment": {
+    "p95_ms": 3141.7806148529053,
+    "p99_ms": 3273.3542919158936,
+    "error_rate": 0.0,
+    "p95_within_sla": false,
+    "p99_within_sla": false,
+    "error_within_sla": true
+  }
+}

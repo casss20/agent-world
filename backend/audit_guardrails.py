@@ -218,10 +218,11 @@ class AuditTrailStore:
             conn.close()
     
     def record_run_start(self, run: WorkflowRunRecord):
-        """Record the start of a workflow run"""
+        """Record the start of a workflow run (idempotent)"""
         with self._get_connection() as conn:
+            # Use INSERT OR REPLACE to handle retries gracefully
             conn.execute("""
-                INSERT INTO workflow_runs 
+                INSERT OR REPLACE INTO workflow_runs 
                 (run_id, correlation_id, room_id, user_id, workflow_id, engine_type,
                  status, created_at, started_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
