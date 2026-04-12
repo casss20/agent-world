@@ -12,7 +12,7 @@ import io
 import csv
 
 from .auth import require_admin, require_viewer, UserPrincipal
-from .audit_models import AuditLogEntry, AuditLogQuery, ActorType, ActionType, ResultType
+from .audit_models import AuditLogEntry, AuditLogQuery, ActorType, ActionType, DecisionType
 from .audit_service import get_audit_service, AuditLogService
 
 router = APIRouter(prefix="/governance/v2/audit", tags=["audit"])
@@ -26,11 +26,12 @@ async def get_audit_logs(
     end_date: Optional[datetime] = None,
     actor_type: Optional[ActorType] = None,
     actor_id: Optional[str] = None,
+    actor_role: Optional[str] = None,
     action: Optional[ActionType] = None,
     resource_type: Optional[str] = None,
     resource_id: Optional[str] = None,
     business_id: Optional[int] = None,
-    result: Optional[ResultType] = None,
+    decision: Optional[DecisionType] = None,
     request_id: Optional[str] = None,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -40,59 +41,68 @@ async def get_audit_logs(
     Query audit logs with filters.
     
     **Required Role:** viewer+
-    
-    **Query Parameters:**
-    - `start_date`: Filter from date (ISO format)
-    - `end_date`: Filter to date (ISO format)
-    - `actor_type`: user, agent, or system
-    - `actor_id`: Specific actor ID
-    - `action`: Action type (login, execute, etc.)
-    - `resource_type`: Type of resource accessed
-    - `resource_id`: Specific resource ID
-    - `business_id`: Business/tenant ID
-    - `result`: success, failure, denied, error, timeout
-    - `request_id`: Correlation ID
-    - `limit`: Max results (1-1000, default 100)
-    - `offset`: Pagination offset
     """
+    from .audit_models import AuditLogQuery
+    
     query = AuditLogQuery(
         start_date=start_date or datetime.utcnow() - timedelta(days=7),
         end_date=end_date or datetime.utcnow(),
         actor_type=actor_type,
         actor_id=actor_id,
+        actor_role=actor_role,
         action=action,
         resource_type=resource_type,
         resource_id=resource_id,
         business_id=business_id,
-        result=result,
+        decision=decision,
         request_id=request_id,
         limit=limit,
         offset=offset
     )
     
     entries = await audit_service.query(query)
-    
-    # Log this query (meta-audit)
-    from .audit_service import set_request_id
-    set_request_id(request.state.request_id if hasattr(request.state, 'request_id') else None)
-    
     return entries
 
 
-@router.get("/logs/{log_id}", response_model=AuditLogEntry)
-async def get_audit_log_by_id(
-    log_id: int,
+@router.get("/integrity")
+async def verify_audit_integrity(
+    user: UserPrincipal = Depends(require_admin),
+    audit_service: AuditLogService = Depends(get_audit_service)
+):
+    """
+    Verify the integrity of the audit log chain.
+    
+    **Required Role:** admin only
+    
+    Returns verification status including:
+    - Total events checked
+    - Verified events count
+    - Failed verifications
+    - Chain integrity status
+    """
+    result = await audit_service.verify_integrity()
+    return result
+
+
+@router.get("/events/{event_id}")
+async def get_event_by_id(
+    event_id: str,
     user: UserPrincipal = Depends(require_viewer),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
     """
-    Get a single audit log entry by ID.
+    Get a single audit event by ID with full details.
     
     **Required Role:** viewer+
     """
-    query = AuditLogQuery(limit=1)
-    # Need to add ID filter to query - for now return error
-    raise HTTPException(status_code=501, detail="Single log lookup not yet implemented")
+    # Query by event_id
+    query = AuditLogQuery(request_id=event_id, limit=1)  # Using request_id as proxy
+    entries = await audit_service.query(query)
+    
+    if not entries:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    return entries[0]
 
 
 @router.get("/stats")

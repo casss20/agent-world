@@ -48,49 +48,123 @@ class AuditLogService:
         async with self.pool.acquire() as conn:
             await conn.execute(CREATE_TABLE_SQL)
     
-    async def log(self, entry: AuditLogEntry) -> int:
+    async def log(self, entry: AuditLogEntry) -> str:
         """
-        Write audit log entry to database
+        Write audit log entry to database with hash chaining
         
         Returns:
-            ID of the created entry
+            event_id of the created entry
         """
         # Inject request ID from context if not provided
         if not entry.request_id:
             entry.request_id = request_id_context.get()
         
+        # Get previous hash for chain integrity
+        prev_hash = await self._get_last_hash()
+        entry.prev_hash = prev_hash
+        
+        # Compute event hash
+        entry.event_hash = entry.compute_hash(prev_hash)
+        
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO audit_logs (
-                    timestamp, actor_type, actor_id, actor_role,
-                    action, action_description, resource_type, resource_id,
-                    business_id, result, result_details, request_id,
-                    session_id, ip_address, user_agent, metadata
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                    event_id, request_id, actor_type, actor_id, actor_role,
+                    action, resource_type, resource_id, business_id,
+                    route, method, status_code, decision,
+                    ip_address, user_agent, details, prev_hash, event_hash, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
                 RETURNING id
                 """,
-                entry.timestamp,
+                entry.event_id,
+                entry.request_id,
                 entry.actor_type.value,
                 entry.actor_id,
                 entry.actor_role,
                 entry.action.value,
-                entry.action_description,
                 entry.resource_type,
                 entry.resource_id,
                 entry.business_id,
-                entry.result.value,
-                json.dumps(entry.result_details) if entry.result_details else None,
-                entry.request_id,
-                entry.session_id,
+                entry.route,
+                entry.method,
+                entry.status_code,
+                entry.decision.value,
                 entry.ip_address,
                 entry.user_agent,
-                json.dumps(entry.metadata) if entry.metadata else None
+                json.dumps(entry.details) if entry.details else '{}',
+                entry.prev_hash,
+                entry.event_hash,
+                entry.created_at
             )
-            return row['id']
+            return entry.event_id
+    
+    async def _get_last_hash(self) -> Optional[str]:
+        """Get the hash of the most recent audit log entry"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT event_hash FROM audit_logs ORDER BY id DESC LIMIT 1"
+            )
+            return row['event_hash'] if row else None
+    
+    async def verify_integrity(self, limit: int = 10000) -> Dict[str, Any]:
+        """
+        Verify the integrity of the audit log chain
+        
+        Returns:
+            Integrity status with verification results
+        """
+        from .audit_models import IntegrityStatus, DecisionType
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM audit_logs ORDER BY id ASC LIMIT $1",
+                limit
+            )
+        
+        if not rows:
+            return IntegrityStatus(
+                total_events=0,
+                verified_events=0,
+                failed_events=0,
+                chain_intact=True
+            ).dict()
+        
+        verified = 0
+        failed = 0
+        prev_hash = None
+        
+        for row in rows:
+            entry = self._row_to_entry(row)
+            
+            # Skip hash verification for first entry (no prev_hash)
+            if entry.prev_hash is None or prev_hash is None:
+                verified += 1
+            elif entry.prev_hash != prev_hash:
+                failed += 1
+            else:
+                # Verify event hash
+                computed = entry.compute_hash(prev_hash)
+                if computed == entry.event_hash:
+                    verified += 1
+                else:
+                    failed += 1
+            
+            prev_hash = entry.event_hash
+        
+        return IntegrityStatus(
+            total_events=len(rows),
+            verified_events=verified,
+            failed_events=failed,
+            chain_intact=failed == 0,
+            first_event_id=rows[0]['event_id'],
+            last_event_id=rows[-1]['event_id'],
+            last_hash=prev_hash
+        ).dict()
     
     async def query(self, query: AuditLogQuery) -> List[AuditLogEntry]:
         """Query audit logs with filters"""
+        from .audit_models import DecisionType
         
         # Build dynamic query
         conditions = []
@@ -98,12 +172,12 @@ class AuditLogService:
         param_idx = 1
         
         if query.start_date:
-            conditions.append(f"timestamp >= ${param_idx}")
+            conditions.append(f"created_at >= ${param_idx}")
             params.append(query.start_date)
             param_idx += 1
         
         if query.end_date:
-            conditions.append(f"timestamp <= ${param_idx}")
+            conditions.append(f"created_at <= ${param_idx}")
             params.append(query.end_date)
             param_idx += 1
         
@@ -115,6 +189,11 @@ class AuditLogService:
         if query.actor_id:
             conditions.append(f"actor_id = ${param_idx}")
             params.append(query.actor_id)
+            param_idx += 1
+        
+        if query.actor_role:
+            conditions.append(f"actor_role = ${param_idx}")
+            params.append(query.actor_role)
             param_idx += 1
         
         if query.action:
@@ -137,9 +216,9 @@ class AuditLogService:
             params.append(query.business_id)
             param_idx += 1
         
-        if query.result:
-            conditions.append(f"result = ${param_idx}")
-            params.append(query.result.value)
+        if query.decision:
+            conditions.append(f"decision = ${param_idx}")
+            params.append(query.decision.value)
             param_idx += 1
         
         if query.request_id:
@@ -152,7 +231,7 @@ class AuditLogService:
         sql = f"""
             SELECT * FROM audit_logs
             WHERE {where_clause}
-            ORDER BY timestamp DESC
+            ORDER BY created_at DESC
             LIMIT ${param_idx} OFFSET ${param_idx + 1}
         """
         params.extend([query.limit, query.offset])
@@ -163,19 +242,20 @@ class AuditLogService:
     
     async def get_stats(self, days: int = 30) -> AuditLogStats:
         """Get audit log statistics"""
+        from .audit_models import DecisionType
         
         async with self.pool.acquire() as conn:
             # Total entries
             total_row = await conn.fetchrow(
-                "SELECT COUNT(*) as count FROM audit_logs WHERE timestamp >= $1",
+                "SELECT COUNT(*) as count FROM audit_logs WHERE created_at >= $1",
                 datetime.utcnow() - timedelta(days=days)
             )
             
             # Date range
             range_row = await conn.fetchrow(
                 """
-                SELECT MIN(timestamp) as min_date, MAX(timestamp) as max_date
-                FROM audit_logs WHERE timestamp >= $1
+                SELECT MIN(created_at) as min_date, MAX(created_at) as max_date
+                FROM audit_logs WHERE created_at >= $1
                 """,
                 datetime.utcnow() - timedelta(days=days)
             )
@@ -185,19 +265,19 @@ class AuditLogService:
                 """
                 SELECT action, COUNT(*) as count
                 FROM audit_logs
-                WHERE timestamp >= $1
+                WHERE created_at >= $1
                 GROUP BY action
                 """,
                 datetime.utcnow() - timedelta(days=days)
             )
             
-            # Result breakdown
-            result_rows = await conn.fetch(
+            # Decision breakdown
+            decision_rows = await conn.fetch(
                 """
-                SELECT result, COUNT(*) as count
+                SELECT decision, COUNT(*) as count
                 FROM audit_logs
-                WHERE timestamp >= $1
-                GROUP BY result
+                WHERE created_at >= $1
+                GROUP BY decision
                 """,
                 datetime.utcnow() - timedelta(days=days)
             )
@@ -207,7 +287,7 @@ class AuditLogService:
                 """
                 SELECT actor_type, COUNT(*) as count
                 FROM audit_logs
-                WHERE timestamp >= $1
+                WHERE created_at >= $1
                 GROUP BY actor_type
                 """,
                 datetime.utcnow() - timedelta(days=days)
@@ -216,10 +296,10 @@ class AuditLogService:
             # Hourly activity (last 24 hours)
             hourly_rows = await conn.fetch(
                 """
-                SELECT EXTRACT(HOUR FROM timestamp) as hour, COUNT(*) as count
+                SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count
                 FROM audit_logs
-                WHERE timestamp >= NOW() - INTERVAL '24 hours'
-                GROUP BY EXTRACT(HOUR FROM timestamp)
+                WHERE created_at >= NOW() - INTERVAL '24 hours'
+                GROUP BY EXTRACT(HOUR FROM created_at)
                 ORDER BY hour
                 """
             )
@@ -231,7 +311,7 @@ class AuditLogService:
                     'end': range_row['max_date'] or datetime.utcnow()
                 },
                 action_breakdown={row['action']: row['count'] for row in action_rows},
-                result_breakdown={row['result']: row['count'] for row in result_rows},
+                decision_breakdown={row['decision']: row['count'] for row in decision_rows},
                 actor_breakdown={row['actor_type']: row['count'] for row in actor_rows},
                 hourly_activity={f"{int(row['hour']):02d}:00": row['count'] for row in hourly_rows}
             )
@@ -258,24 +338,28 @@ class AuditLogService:
     
     def _row_to_entry(self, row: asyncpg.Record) -> AuditLogEntry:
         """Convert database row to AuditLogEntry"""
+        from .audit_models import DecisionType
         return AuditLogEntry(
             id=row['id'],
-            timestamp=row['timestamp'],
+            event_id=str(row['event_id']),
+            created_at=row['created_at'],
+            request_id=row['request_id'],
             actor_type=ActorType(row['actor_type']),
             actor_id=row['actor_id'],
             actor_role=row['actor_role'],
             action=ActionType(row['action']),
-            action_description=row['action_description'],
             resource_type=row['resource_type'],
             resource_id=row['resource_id'],
             business_id=row['business_id'],
-            result=ResultType(row['result']),
-            result_details=json.loads(row['result_details']) if row['result_details'] else None,
-            request_id=row['request_id'],
-            session_id=row['session_id'],
-            ip_address=str(row['ip_address']) if row['ip_address'] else None,
+            route=row['route'],
+            method=row['method'],
+            status_code=row['status_code'],
+            decision=DecisionType(row['decision']),
+            ip_address=row['ip_address'],
             user_agent=row['user_agent'],
-            metadata=json.loads(row['metadata']) if row['metadata'] else None
+            details=json.loads(row['details']) if row['details'] else {},
+            prev_hash=row['prev_hash'],
+            event_hash=row['event_hash']
         )
 
 # Global service instance
