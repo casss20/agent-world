@@ -53,6 +53,69 @@ export class SpriteFetcher {
   }
 
   /**
+   * Generate a fallback initials avatar as SVG data URI.
+   * Used when sprite image fails to load.
+   * @param {string} node_id - Node ID to generate initials from.
+   * @returns {string} SVG data URI.
+   */
+  generateInitialsAvatar(node_id) {
+    // Extract initials from node_id (first letter, or first letters of words)
+    const words = node_id.split(/[-_]/)
+    const initials = words.length > 1 
+      ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
+      : node_id.slice(0, 2).toUpperCase()
+    
+    // Generate consistent color from node_id
+    const hash = node_id.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0)
+      return a & a
+    }, 0)
+    const hue = Math.abs(hash % 360)
+    const color = `hsl(${hue}, 70%, 50%)`
+    const bgColor = `hsl(${hue}, 70%, 20%)`
+    
+    // Create SVG
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${bgColor}"/>
+            <stop offset="100%" style="stop-color:${color}"/>
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="30" fill="url(#g)" stroke="${color}" stroke-width="2"/>
+        <text x="32" y="38" font-family="Arial, sans-serif" font-size="20" font-weight="bold" 
+              fill="white" text-anchor="middle">${initials}</text>
+      </svg>
+    `.trim()
+    
+    return `data:image/svg+xml;base64,${btoa(svg)}`
+  }
+
+  /**
+   * Create an image element with fallback handling.
+   * @param {string} node_id - Node ID.
+   * @param {string} stance - Stance ('D', 'L', 'R', 'U').
+   * @param {number} frame - Frame number.
+   * @returns {HTMLImageElement} Image element with fallback.
+   */
+  createImageWithFallback(node_id, stance = 'D', frame = 1) {
+    const spritePath = this.fetchSprite(node_id, stance, frame)
+    const img = new Image()
+    
+    img.onerror = () => {
+      // Fallback to initials avatar
+      img.src = this.generateInitialsAvatar(node_id)
+      img.dataset.fallback = 'true'
+    }
+    
+    img.src = spritePath
+    img.dataset.character = this.nodeCharacterMap.get(node_id) || 'fallback'
+    
+    return img
+  }
+
+  /**
    * Get current usage status.
    * @returns {Object} Usage status summary.
    */
