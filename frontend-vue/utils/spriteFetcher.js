@@ -1,80 +1,253 @@
 /**
- * SpriteFetcher manages sprite image selection.
- * It provides random sprite selection and tracks used sprites to avoid duplicates.
+ * SpriteFetcher - Full Avatar Hierarchy Implementation
+ * 
+ * Fallback Chain:
+ *   Level 1: Custom Avatar (/avatars/{agentId}.png)
+ *   Level 2: Role-Based Sprite (predefined role → character mapping)
+ *   Level 3: Generic Sprite (random assignment 1-12, bound to agentId)
+ *   Level 4: Initials Fallback (SVG generator, guaranteed)
  */
+
 export class SpriteFetcher {
   constructor() {
-    // Available character list (1-12)
-    this.availableCharacters = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    // Map of characters already bound to node_id
-    this.nodeCharacterMap = new Map()
-    // Unassigned character pool for random allocation
-    this.unassignedCharacters = [...this.availableCharacters]
+    // Level 2: Role-to-character mapping
+    this.roleSpriteMap = {
+      'Researcher': 1,
+      'Designer': 2,
+      'Writer': 3,
+      'Developer': 4,
+      'Analyst': 5,
+      'Scout': 6,
+      'Merchant': 7,
+      'Maker': 8,
+      'Guardian': 9,
+      'Strategist': 10,
+      'Operator': 11
+    };
+    
+    // Level 3: Generic sprite assignment
+    this.availableCharacters = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    this.nodeCharacterMap = new Map();
+    this.unassignedCharacters = [...this.availableCharacters];
+    
+    // Level 1: Custom avatar cache (agentId → path)
+    this.customAvatarCache = new Map();
+    this.checkedCustomAvatars = new Set();
   }
 
   /**
-   * Get a random sprite image path.
-   * @param {string} node_id - Node ID used to bind a character.
-   * @param {string} stance - Stance ('D', 'L', 'R', 'U').
-   * @param {number} frame - Frame number (1, 2, 3).
-   * @returns {string} Image path.
+   * Full hierarchy avatar resolution
+   * Returns the best available avatar based on the 4-level fallback chain
+   * 
+   * @param {string} agentId - Unique agent identifier
+   * @param {string} role - Agent role (for Level 2)
+   * @param {string} stance - Stance ('D', 'L', 'R', 'U')
+   * @param {number} frame - Frame number (1, 2, 3)
+   * @returns {Object} Avatar resolution result
+   */
+  async resolveAvatar(agentId, role = null, stance = 'D', frame = 1) {
+    // Level 1: Custom Avatar
+    if (!this.checkedCustomAvatars.has(agentId)) {
+      const customPath = `/avatars/${agentId}.png`;
+      const hasCustom = await this.checkImageExists(customPath);
+      
+      if (hasCustom) {
+        this.customAvatarCache.set(agentId, customPath);
+        return {
+          level: 1,
+          type: 'custom',
+          path: customPath,
+          agentId,
+          fallback: false
+        };
+      }
+      
+      this.checkedCustomAvatars.add(agentId);
+    } else if (this.customAvatarCache.has(agentId)) {
+      return {
+        level: 1,
+        type: 'custom',
+        path: this.customAvatarCache.get(agentId),
+        agentId,
+        fallback: false
+      };
+    }
+    
+    // Level 2: Role-Based Sprite
+    if (role && this.roleSpriteMap[role]) {
+      const character = this.roleSpriteMap[role];
+      return {
+        level: 2,
+        type: 'role',
+        role,
+        character,
+        path: `/sprites/${character}-${stance}-${frame}.png`,
+        agentId,
+        fallback: false
+      };
+    }
+    
+    // Level 3: Generic Sprite
+    const character = this.getOrAssignCharacter(agentId);
+    return {
+      level: 3,
+      type: 'generic',
+      character,
+      path: `/sprites/${character}-${stance}-${frame}.png`,
+      agentId,
+      fallback: false
+    };
+  }
+
+  /**
+   * Create an image element with full fallback chain
+   * Automatically falls through all 4 levels on error
+   * 
+   * @param {string} agentId - Agent identifier
+   * @param {string} role - Agent role
+   * @param {string} stance - Stance direction
+   * @param {number} frame - Animation frame
+   * @returns {HTMLImageElement} Image element with fallback handlers
+   */
+  createAvatarImage(agentId, role = null, stance = 'D', frame = 1) {
+    const img = new Image();
+    img.dataset.agentId = agentId;
+    img.dataset.role = role || '';
+    img.dataset.stance = stance;
+    img.dataset.frame = frame;
+    
+    // Start at Level 1 (Custom)
+    this.tryLoadLevel(img, 1);
+    
+    return img;
+  }
+
+  /**
+   * Try loading avatar at specific hierarchy level
+   * Falls to next level on error
+   * 
+   * @param {HTMLImageElement} img - Image element
+   * @param {number} level - Hierarchy level (1-4)
+   */
+  tryLoadLevel(img, level) {
+    const agentId = img.dataset.agentId;
+    const role = img.dataset.role;
+    const stance = img.dataset.stance;
+    const frame = parseInt(img.dataset.frame);
+    
+    switch (level) {
+      case 1: // Custom Avatar
+        img.src = `/avatars/${agentId}.png`;
+        img.dataset.level = '1';
+        img.dataset.type = 'custom';
+        break;
+        
+      case 2: // Role-Based
+        if (role && this.roleSpriteMap[role]) {
+          const char = this.roleSpriteMap[role];
+          img.src = `/sprites/${char}-${stance}-${frame}.png`;
+          img.dataset.level = '2';
+          img.dataset.type = 'role';
+          img.dataset.character = char;
+          break;
+        }
+        // Fall through if no role mapping
+        
+      case 3: // Generic Sprite
+        const character = this.getOrAssignCharacter(agentId);
+        img.src = `/sprites/${character}-${stance}-${frame}.png`;
+        img.dataset.level = '3';
+        img.dataset.type = 'generic';
+        img.dataset.character = character;
+        break;
+        
+      case 4: // Initials Fallback (guaranteed)
+        img.src = this.generateInitialsAvatar(agentId);
+        img.dataset.level = '4';
+        img.dataset.type = 'initials';
+        img.dataset.fallback = 'true';
+        return; // No more fallbacks
+    }
+    
+    // Set up error handler for next level
+    img.onerror = () => {
+      this.tryLoadLevel(img, level + 1);
+    };
+  }
+
+  /**
+   * Get or assign a character to an agent
+   * Ensures consistent sprite assignment per agent
+   * 
+   * @param {string} agentId - Agent identifier
+   * @returns {number} Character number (1-12)
+   */
+  getOrAssignCharacter(agentId) {
+    // Return existing assignment
+    if (this.nodeCharacterMap.has(agentId)) {
+      return this.nodeCharacterMap.get(agentId);
+    }
+    
+    // Assign new character
+    let character;
+    if (this.unassignedCharacters.length === 0) {
+      // All assigned, pick randomly from full pool
+      character = this.availableCharacters[
+        Math.floor(Math.random() * this.availableCharacters.length)
+      ];
+    } else {
+      // Pick from unassigned pool
+      const randomIndex = Math.floor(Math.random() * this.unassignedCharacters.length);
+      character = this.unassignedCharacters[randomIndex];
+      this.unassignedCharacters.splice(randomIndex, 1);
+    }
+    
+    // Bind to agent
+    this.nodeCharacterMap.set(agentId, character);
+    return character;
+  }
+
+  /**
+   * Get sprite path (original method - Level 3 only)
+   * Maintains backward compatibility
+   * 
+   * @param {string} node_id - Node/agent ID
+   * @param {string} stance - Stance direction
+   * @param {number} frame - Animation frame
+   * @returns {string} Sprite path
    */
   fetchSprite(node_id = null, stance = 'D', frame = 1) {
-    let character
-
-    if (node_id) {
-      // Use the bound character if this node already has one.
-      if (this.nodeCharacterMap.has(node_id)) {
-        character = this.nodeCharacterMap.get(node_id)
-      } else {
-        // If no character is bound, choose one at random.
-        if (this.unassignedCharacters.length === 0) {
-          // If all characters are assigned, pick one from the assigned pool.
-          character = this.availableCharacters[Math.floor(Math.random() * this.availableCharacters.length)]
-        } else {
-          // Pick randomly from the unassigned pool.
-          const randomIndex = Math.floor(Math.random() * this.unassignedCharacters.length)
-          character = this.unassignedCharacters[randomIndex]
-          this.unassignedCharacters.splice(randomIndex, 1)
-        }
-
-        // Bind the character to the node.
-        this.nodeCharacterMap.set(node_id, character)
-      }
-    } else {
-      // If no node_id is specified, select a random character.
-      character = this.availableCharacters[Math.floor(Math.random() * this.availableCharacters.length)]
-    }
-
-    // Build the sprite path.
-    const spritePath = `/sprites/${character}-${stance}-${frame}.png`
-
-    return spritePath
+    const character = node_id 
+      ? this.getOrAssignCharacter(node_id)
+      : this.availableCharacters[Math.floor(Math.random() * 12)];
+    
+    return `/sprites/${character}-${stance}-${frame}.png`;
   }
 
   /**
-   * Generate a fallback initials avatar as SVG data URI.
-   * Used when sprite image fails to load.
-   * @param {string} node_id - Node ID to generate initials from.
-   * @returns {string} SVG data URI.
+   * Generate initials fallback avatar (Level 4)
+   * Creates SVG data URI with initials and consistent color
+   * 
+   * @param {string} node_id - Agent identifier
+   * @returns {string} Base64 SVG data URI
    */
   generateInitialsAvatar(node_id) {
-    // Extract initials from node_id (first letter, or first letters of words)
-    const words = node_id.split(/[-_]/)
+    // Extract initials: "trend-scout" → "TS", "agent" → "AG"
+    const words = node_id.split(/[-_]/);
     const initials = words.length > 1 
       ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
-      : node_id.slice(0, 2).toUpperCase()
+      : node_id.slice(0, 2).toUpperCase();
     
-    // Generate consistent color from node_id
+    // Generate consistent HSL color from node_id hash
     const hash = node_id.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0)
-      return a & a
-    }, 0)
-    const hue = Math.abs(hash % 360)
-    const color = `hsl(${hue}, 70%, 50%)`
-    const bgColor = `hsl(${hue}, 70%, 20%)`
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    const hue = Math.abs(hash % 360);
+    const color = `hsl(${hue}, 70%, 50%)`;
+    const bgColor = `hsl(${hue}, 70%, 20%)`;
     
-    // Create SVG
+    // Create SVG avatar
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
         <defs>
@@ -87,57 +260,80 @@ export class SpriteFetcher {
         <text x="32" y="38" font-family="Arial, sans-serif" font-size="20" font-weight="bold" 
               fill="white" text-anchor="middle">${initials}</text>
       </svg>
-    `.trim()
+    `.trim();
     
-    return `data:image/svg+xml;base64,${btoa(svg)}`
+    // Convert to base64 data URI
+    const base64 = typeof btoa !== 'undefined' 
+      ? btoa(svg)
+      : Buffer.from(svg).toString('base64');
+    
+    return `data:image/svg+xml;base64,${base64}`;
   }
 
   /**
-   * Create an image element with fallback handling.
-   * @param {string} node_id - Node ID.
-   * @param {string} stance - Stance ('D', 'L', 'R', 'U').
-   * @param {number} frame - Frame number.
-   * @returns {HTMLImageElement} Image element with fallback.
+   * Check if image exists (async)
+   * 
+   * @param {string} url - Image URL to check
+   * @returns {Promise<boolean>} True if image exists
    */
-  createImageWithFallback(node_id, stance = 'D', frame = 1) {
-    const spritePath = this.fetchSprite(node_id, stance, frame)
-    const img = new Image()
-    
-    img.onerror = () => {
-      // Fallback to initials avatar
-      img.src = this.generateInitialsAvatar(node_id)
-      img.dataset.fallback = 'true'
-    }
-    
-    img.src = spritePath
-    img.dataset.character = this.nodeCharacterMap.get(node_id) || 'fallback'
-    
-    return img
+  checkImageExists(url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
   }
 
   /**
-   * Get current usage status.
-   * @returns {Object} Usage status summary.
+   * Preload avatar for an agent (optimistic)
+   * Checks custom avatar and caches result
+   * 
+   * @param {string} agentId - Agent identifier
+   */
+  async preloadAvatar(agentId) {
+    if (this.checkedCustomAvatars.has(agentId)) return;
+    
+    const customPath = `/avatars/${agentId}.png`;
+    const hasCustom = await this.checkImageExists(customPath);
+    
+    if (hasCustom) {
+      this.customAvatarCache.set(agentId, customPath);
+    }
+    this.checkedCustomAvatars.add(agentId);
+  }
+
+  /**
+   * Get current system status
+   * 
+   * @returns {Object} Status summary
    */
   getStatus() {
     return {
       totalCharacters: this.availableCharacters.length,
       assignedNodes: this.nodeCharacterMap.size,
       unassignedCount: this.unassignedCharacters.length,
+      customAvatars: this.customAvatarCache.size,
       nodeCharacterMap: Object.fromEntries(this.nodeCharacterMap),
+      roleSpriteMap: this.roleSpriteMap,
       unassignedCharacters: [...this.unassignedCharacters].sort((a, b) => a - b)
-    }
+    };
   }
 
   /**
-   * Reset usage state and clear used sprite records.
+   * Reset all assignments (use with caution)
    */
   reset() {
-    this.nodeCharacterMap.clear()
-    this.unassignedCharacters = [...this.availableCharacters]
-    console.log('Sprite usage state reset')
+    this.nodeCharacterMap.clear();
+    this.unassignedCharacters = [...this.availableCharacters];
+    this.customAvatarCache.clear();
+    this.checkedCustomAvatars.clear();
+    console.log('SpriteFetcher: All assignments reset');
   }
 }
 
-// Create a singleton instance.
-export const spriteFetcher = new SpriteFetcher()
+// Create singleton instance
+export const spriteFetcher = new SpriteFetcher();
+
+// Backward compatibility exports
+export default spriteFetcher;
