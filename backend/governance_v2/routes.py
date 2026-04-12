@@ -74,6 +74,69 @@ class KillSwitchTriggerRequest(BaseModel):
     reason: str
 
 
+# ============ Auth Routes (Public) ============
+
+class LoginRequest(BaseModel):
+    """Login request"""
+    username: str
+    password: str
+    role: str  # viewer, operator, governor, admin
+
+
+class TokenResponse(BaseModel):
+    """Token response"""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    role: str
+
+
+@router.post("/auth/login", response_model=TokenResponse)
+async def login(request: LoginRequest):
+    """
+    Authenticate and obtain JWT token.
+    
+    In production, validate against user database.
+    This is a simplified version for demonstration.
+    """
+    # Import here to avoid circular imports
+    import sys
+    sys.path.insert(0, '/root/.openclaw/workspace/agent-world/backend')
+    from security_middleware import JWTHandler, audit_logger
+    
+    # TODO: Validate credentials against database
+    # For now, accept any username/password combo
+    
+    # Create token
+    from security_middleware import Role
+    try:
+        role = Role(request.role)
+    except ValueError:
+        role = Role.VIEWER
+    
+    token = JWTHandler.create_token(
+        subject=request.username,
+        role=role,
+        expiry_hours=24
+    )
+    
+    # Audit log
+    audit_logger.log(
+        action="login",
+        actor=request.username,
+        resource="/auth/login",
+        result="success",
+        request_id=str(datetime.utcnow().timestamp()),
+        metadata={"role": request.role}
+    )
+    
+    return TokenResponse(
+        access_token=token,
+        expires_in=24 * 3600,
+        role=request.role
+    )
+
+
 # ============ Phase 1: Core Governance Routes ============
 
 @router.post("/execute")

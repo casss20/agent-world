@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 class SecurityConfig:
     """Security configuration - load from environment in production"""
-    JWT_SECRET = "your-secret-key-change-in-production"  # Use os.environ.get()
+    JWT_SECRET = "10081ae4407de3819f9833e241885e3d6b0edabc85a9c897db8cb20cd98f44b8"  # CHANGE IN PRODUCTION
     JWT_ALGORITHM = "HS256"
     JWT_EXPIRY_HOURS = 24
     
@@ -428,9 +428,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     
     # Public routes that don't require auth
     PUBLIC_ROUTES = [
-        ("GET", "/health"),
-        ("GET", "/health/live"),
-        ("GET", "/health/ready"),
+        ("GET", "/governance/v2/health"),
+        ("GET", "/governance/v2/health/live"),
+        ("GET", "/governance/v2/health/ready"),
+        ("POST", "/governance/v2/auth/login"),  # Auth endpoint itself
     ]
     
     async def dispatch(self, request: Request, call_next) -> Response:

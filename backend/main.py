@@ -8,6 +8,9 @@ import uuid
 from datetime import datetime
 import random
 
+# Import security middleware
+from security_middleware import SecurityMiddleware
+
 # Import additional routers
 from chatdev_workflow_routes import router as chatdev_router
 from ledger_routes import router as ledger_router
@@ -17,6 +20,9 @@ from governance_v2.routes import router as governance_v2_router, set_governance_
 from governance_v2 import LedgerGovernanceSystem
 
 app = FastAPI(title="Agent World", version="1.0")
+
+# Add security middleware FIRST (before CORS)
+app.add_middleware(SecurityMiddleware)
 
 # Governance system instance (initialized on startup)
 governance_system = None
