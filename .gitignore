@@ -40,3 +40,10 @@ Thumbs.db
 *.pid
 *.sock
 *.ttf
+
+# Frontend
+frontend-vue/node_modules/
+frontend-vue/dist/
+frontend-react/node_modules/
+frontend-react/dist/
+*.log
