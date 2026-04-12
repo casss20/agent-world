@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.production
+.env.*.local
 
 # Python
 __pycache__/
@@ -12,16 +13,24 @@ __pycache__/
 *.egg-info/
 .eggs/
 *.egg
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+.mypy_cache/
 
 # Virtual environments
 venv/
 env/
 ENV/
+.venv/
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
 # Database
 *.db
@@ -46,4 +55,34 @@ frontend-vue/node_modules/
 frontend-vue/dist/
 frontend-react/node_modules/
 frontend-react/dist/
-*.log
+
+# Build artifacts
+build/
+dist/
+*.min.js
+*.min.css
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+
+# Session files
+sessions/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Vercel
+.vercel
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
