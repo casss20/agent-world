@@ -1,39 +1,28 @@
-# Backend Dockerfile
-# Ticket 4: CI/CD Pipeline
+FROM python:3.11-slim
 
-FROM python:3.12-slim
-
-# Security: Run as non-root
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     gcc \
+    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
-# Copy requirements first for layer caching
+# Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
-# Create log directory
-RUN mkdir -p /var/log/agentverse && chown -R appuser:appuser /var/log/agentverse
-
-# Switch to non-root user
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
-EXPOSE 8000
-
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/stateless/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/governance/v2/health/live || exit 1
 
-# Run application
-CMD ["python", "stateless_adapter.py"]
+# Run with gunicorn for production
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-", "main:app"]

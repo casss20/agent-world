@@ -1,0 +1,67 @@
+{
+  "family": "agent-world-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "YOUR_ECR_REPO/agent-world-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ENVIRONMENT",
+          "value": "production"
+        },
+        {
+          "name": "LOG_LEVEL",
+          "value": "info"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:agent-world/db-url"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:agent-world/jwt-secret"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:agent-world/openai-key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/agent-world-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/governance/v2/health/live || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ]
+    }
+  ]
+}

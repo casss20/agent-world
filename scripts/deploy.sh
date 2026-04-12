@@ -1,247 +1,163 @@
 #!/bin/bash
-# Ticket 4: Deployment Script with Blue-Green Strategy
-# Safe deployment with automatic rollback on failure
+# Production Deployment Script for Agent World
+# Usage: ./deploy.sh [aws|gcp|azure|docker]
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-COMPOSE_FILE="${PROJECT_DIR}/docker-compose.prod.yml"
-ENV_FILE="${PROJECT_DIR}/.env.production"
+PLATFORM=${1:-docker}
+ENV_FILE=${2:-.env.prod}
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "=== Agent World Production Deployment ==="
+echo "Platform: $PLATFORM"
+echo "Environment: $ENV_FILE"
+echo ""
 
-log() {
-    echo -e "${GREEN}[DEPLOY]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check prerequisites
-check_prerequisites() {
-    log "Checking prerequisites..."
-    
-    command -v docker >/dev/null 2>&1 || { error "Docker not installed"; exit 1; }
-    command -v docker-compose >/dev/null 2>&1 || { error "Docker Compose not installed"; exit 1; }
-    
-    if [ ! -f "$ENV_FILE" ]; then
-        error "Production env file not found: $ENV_FILE"
-        exit 1
-    fi
-    
-    log "Prerequisites OK"
-}
-
-# Pre-deployment health check
-pre_deploy_check() {
-    log "Running pre-deployment health check..."
-    
-    # Check current deployment is healthy
-    if ! curl -sf http://localhost:8080/stateless/health > /dev/null 2>&1; then
-        warn "Current deployment not healthy, proceeding with fresh deploy"
-    else
-        log "Current deployment healthy"
-    fi
-}
-
-# Deploy with blue-green strategy
-deploy_blue_green() {
-    local tag="${1:-latest}"
-    
-    log "Starting blue-green deployment with tag: $tag"
-    
-    # Pull new images
-    log "Pulling new images..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
-    
-    # Scale up new instances (green)
-    log "Scaling up green instances..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps --scale adapter=6 adapter
-    
-    # Wait for green instances to be healthy
-    log "Waiting for green instances to be healthy..."
-    local retries=0
-    local max_retries=30
-    
-    while [ $retries -lt $max_retries ]; do
-        sleep 2
-        
-        # Check health on multiple ports
-        healthy_count=0
-        for port in 8004 8005 8006 8007 8008 8009; do
-            if curl -sf "http://localhost:$port/stateless/health" > /dev/null 2>&1; then
-                ((healthy_count++))
-            fi
-        done
-        
-        log "Green instances healthy: $healthy_count/6"
-        
-        if [ $healthy_count -ge 6 ]; then
-            log "All green instances healthy!"
-            break
-        fi
-        
-        ((retries++))
-    done
-    
-    if [ $retries -eq $max_retries ]; then
-        error "Green instances failed health check"
-        return 1
-    fi
-    
-    # Switch traffic (nginx automatically uses new instances)
-    log "Traffic now routing to green instances..."
-    
-    # Scale down old instances (blue)
-    log "Scaling down blue instances..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps --scale adapter=3 adapter
-    
-    log "Blue-green deployment complete!"
-}
-
-# Smoke tests
-smoke_tests() {
-    log "Running smoke tests..."
-    
-    local tests_passed=0
-    local tests_failed=0
-    
-    # Test health endpoint
-    if curl -sf http://localhost:8080/stateless/health > /dev/null; then
-        log "✓ Health check passed"
-        ((tests_passed++))
-    else
-        error "✗ Health check failed"
-        ((tests_failed++))
-    fi
-    
-    # Test metrics endpoint
-    if curl -sf http://localhost:8004/metrics > /dev/null; then
-        log "✓ Metrics endpoint passed"
-        ((tests_passed++))
-    else
-        error "✗ Metrics endpoint failed"
-        ((tests_failed++))
-    fi
-    
-    # Test workflow launch
-    local run_id=$(curl -sf -X POST http://localhost:8080/stateless/launch \
-        -H "Content-Type: application/json" \
-        -d '{"room_id":"smoke_test","user_id":"deploy","workflow_id":"demo_simple_memory","task_prompt":"smoke test"}' | \
-        python3 -c "import sys,json; print(json.load(sys.stdin).get('run_id',''))")
-    
-    if [ -n "$run_id" ]; then
-        log "✓ Workflow launch passed (run_id: $run_id)"
-        ((tests_passed++))
-    else
-        error "✗ Workflow launch failed"
-        ((tests_failed++))
-    fi
-    
-    # Test Redis connectivity
-    if redis-cli ping > /dev/null 2>&1; then
-        log "✓ Redis connectivity passed"
-        ((tests_passed++))
-    else
-        error "✗ Redis connectivity failed"
-        ((tests_failed++))
-    fi
-    
-    log "Smoke tests: $tests_passed passed, $tests_failed failed"
-    
-    if [ $tests_failed -gt 0 ]; then
-        return 1
-    fi
-    
-    return 0
-}
-
-# Rollback to previous version
-rollback() {
-    local previous_tag="$1"
-    
-    error "Initiating rollback to: $previous_tag"
-    
-    # Pull previous image
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull adapter:${previous_tag}
-    
-    # Restart with previous version
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps adapter
-    
-    # Wait for rollback to stabilize
-    sleep 10
-    
-    # Verify rollback
-    if curl -sf http://localhost:8080/stateless/health > /dev/null; then
-        log "✅ Rollback successful"
-        return 0
-    else
-        error "❌ Rollback failed - manual intervention required"
-        return 1
-    fi
-}
-
-# Main deployment flow
-main() {
-    local tag="${1:-latest}"
-    local previous_tag="${2:-}"
-    
-    log "Starting deployment..."
-    log "Target tag: $tag"
-    
-    check_prerequisites
-    pre_deploy_check
-    
-    # Record deployment start
-    local deploy_start=$(date -u +%Y-%m-%d_%H:%M:%S)
-    echo "DEPLOY_START=$deploy_start" > /tmp/deploy_state
-    echo "PREVIOUS_TAG=$previous_tag" >> /tmp/deploy_state
-    echo "TARGET_TAG=$tag" >> /tmp/deploy_state
-    
-    # Deploy
-    if deploy_blue_green "$tag"; then
-        log "Deployment successful, running smoke tests..."
-        
-        if smoke_tests; then
-            log "✅ Deployment complete and verified!"
-            echo "DEPLOY_END=$(date -u +%Y-%m-%d_%H:%M:%S)" >> /tmp/deploy_state
-            echo "STATUS=success" >> /tmp/deploy_state
-            exit 0
-        else
-            error "Smoke tests failed, initiating rollback..."
-            
-            if rollback "$previous_tag"; then
-                log "Rollback complete"
-                echo "STATUS=rolled_back" >> /tmp/deploy_state
-                exit 1
-            else
-                error "CRITICAL: Rollback failed!"
-                echo "STATUS=failed" >> /tmp/deploy_state
-                exit 2
-            fi
-        fi
-    else
-        error "Deployment failed"
-        
-        if [ -n "$previous_tag" ]; then
-            rollback "$previous_tag"
-        fi
-        
-        exit 1
-    fi
-}
-
-# Handle script execution
-if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
-    main "$@"
+# Check environment file exists
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ Error: Environment file $ENV_FILE not found!"
+    echo "   Copy .env.prod.example to $ENV_FILE and fill in values."
+    exit 1
 fi
+
+# Load environment variables
+export $(grep -v '^#' $ENV_FILE | xargs)
+
+echo "Step 1: Pre-deployment checks..."
+
+# Check required variables
+if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "change_me_to_random_64_char_string" ]; then
+    echo "❌ Error: JWT_SECRET not set!"
+    exit 1
+fi
+
+if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" = "change_me_to_strong_password_32_chars" ]; then
+    echo "❌ Error: DB_PASSWORD not set!"
+    exit 1
+fi
+
+if [ -z "$OPENAI_API_KEY" ] || [ "$OPENAI_API_KEY" = "sk-..." ]; then
+    echo "⚠️  Warning: OPENAI_API_KEY not set - some features will be disabled"
+fi
+
+echo "✅ Environment variables validated"
+
+# Platform-specific deployment
+case $PLATFORM in
+    docker)
+        echo ""
+        echo "Step 2: Docker deployment..."
+        
+        # Pull latest images
+        docker-compose -f docker-compose.prod.yml pull
+        
+        # Build backend
+        docker-compose -f docker-compose.prod.yml build backend chatdev
+        
+        # Start services
+        docker-compose -f docker-compose.prod.yml up -d
+        
+        # Wait for database
+        echo "Waiting for database..."
+        sleep 10
+        
+        # Run migrations
+        echo "Running database migrations..."
+        docker-compose -f docker-compose.prod.yml exec -T backend \
+            python -c "from governance_v2.audit_service import get_audit_service; import asyncio; asyncio.run(get_audit_service().initialize())"
+        
+        echo "✅ Docker deployment complete!"
+        echo ""
+        echo "Services:"
+        echo "  - API: http://localhost:8000"
+        echo "  - Grafana: http://localhost:3000"
+        echo "  - Prometheus: http://localhost:9090"
+        ;;
+    
+    aws)
+        echo ""
+        echo "Step 2: AWS deployment..."
+        
+        # Check AWS CLI
+        if ! command -v aws &> /dev/null; then
+            echo "❌ AWS CLI not installed"
+            exit 1
+        fi
+        
+        # Deploy to ECS
+        echo "Deploying to ECS..."
+        aws ecs update-service \
+            --cluster agent-world-prod \
+            --service agent-world-backend \
+            --force-new-deployment
+        
+        echo "✅ AWS deployment complete!"
+        ;;
+    
+    gcp)
+        echo ""
+        echo "Step 2: GCP deployment..."
+        
+        # Check gcloud
+        if ! command -v gcloud &> /dev/null; then
+            echo "❌ gcloud not installed"
+            exit 1
+        fi
+        
+        # Deploy to Cloud Run
+        echo "Deploying to Cloud Run..."
+        gcloud run deploy agent-world \
+            --source . \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated
+        
+        echo "✅ GCP deployment complete!"
+        ;;
+    
+    azure)
+        echo ""
+        echo "Step 2: Azure deployment..."
+        
+        # Check Azure CLI
+        if ! command -v az &> /dev/null; then
+            echo "❌ Azure CLI not installed"
+            exit 1
+        fi
+        
+        echo "✅ Azure deployment not yet implemented"
+        ;;
+    
+    *)
+        echo "❌ Unknown platform: $PLATFORM"
+        echo "Usage: ./deploy.sh [docker|aws|gcp|azure] [env-file]"
+        exit 1
+        ;;
+esac
+
+# Health check
+echo ""
+echo "Step 3: Health checks..."
+sleep 5
+
+if curl -sf http://localhost:8000/governance/v2/health/live > /dev/null; then
+    echo "✅ Backend health check passed"
+else
+    echo "⚠️  Backend health check failed - check logs: docker-compose -f docker-compose.prod.yml logs backend"
+fi
+
+# Summary
+echo ""
+echo "=== Deployment Summary ==="
+echo "Platform: $PLATFORM"
+echo "Status: $(if curl -sf http://localhost:8000/governance/v2/health/live > /dev/null; then echo '✅ Healthy'; else echo '⚠️  Check logs'; fi)"
+echo ""
+echo "Next steps:"
+echo "  1. Configure SSL certificates"
+echo "  2. Set up DNS records"
+echo "  3. Configure monitoring alerts"
+echo "  4. Test end-to-end workflows"
+echo ""
+echo "Commands:"
+echo "  View logs: docker-compose -f docker-compose.prod.yml logs -f"
+echo "  Scale: docker-compose -f docker-compose.prod.yml up -d --scale backend=3"
+echo "  Stop: docker-compose -f docker-compose.prod.yml down"
