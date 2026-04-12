@@ -42,6 +42,8 @@ from .phase4_hardening import (
     EmergencyKillSwitch
 )
 
+from .audit_service import AuditLogService, get_audit_service
+
 # Integration class that ties everything together
 class LedgerGovernanceSystem:
     """
