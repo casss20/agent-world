@@ -8,7 +8,15 @@ import uuid
 from datetime import datetime
 import random
 
+# Import additional routers
+from chatdev_workflow_routes import router as chatdev_router
+from ledger_routes import router as ledger_router
+
 app = FastAPI(title="Agent World", version="1.0")
+
+# Include additional routers
+app.include_router(chatdev_router)
+app.include_router(ledger_router)
 
 # CORS for frontend
 app.add_middleware(

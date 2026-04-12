@@ -39,3 +39,4 @@ Thumbs.db
 # Runtime
 *.pid
 *.sock
+*.ttf
