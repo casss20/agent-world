@@ -33,6 +33,9 @@ from audit_guardrails import AuditContext, get_audit_store
 # Import original adapters
 from hybrid_adapter import MockChatDevEngine, RealChatDevEngine, HybridWorkflowAdapter
 
+# Import webhook receiver (Ticket 1)
+import webhook_receiver
+
 
 # Configure structured logging
 logger = StructuredLogger("guarded_adapter")
@@ -67,6 +70,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register webhook receiver (Ticket 1)
+app.include_router(webhook_receiver.router)
 
 
 # Configuration
