@@ -2,74 +2,71 @@
 
 ---
 
-## Alerting
+## CI/CD Pipeline
 
-### Alert Configuration
+### GitHub Actions Workflow
+**File:** `.github/workflows/deploy.yml`
 
-**Prometheus Rules:** `alert_rules.yml`
-**AlertManager Config:** `alertmanager.yml`
+**Triggers:**
+- Push to `main` or `arch/v2-multi-agent-platform`
+- Tags starting with `v`
+- Pull requests to `main`
 
-### Active Alerts
+**Stages:**
+1. **Test** — Run pytest, security scan (bandit, safety)
+2. **Build** — Build Docker image, push to GHCR
+3. **Deploy Staging** — Deploy to staging, run smoke tests
+4. **Deploy Production** — Blue-green deploy with auto-rollback
 
-| Alert | Severity | Condition | Action |
-|-------|----------|-----------|--------|
-| AdapterHighLatency | warning | P95 > 1s for 5m | Check instance load |
-| AdapterHighErrorRate | critical | Error rate > 1% | Check logs |
-| AdapterInstanceDown | critical | Instance down > 1m | Restart instance |
-| CircuitBreakerOpen | warning | Breaker opened | Check downstream |
-| RedisDown | critical | Redis disconnected | Restart Redis |
-| HighActiveWorkflows | warning | > 50 active | Scale up |
-| HighMemoryUsage | warning | > 500MB | Restart instance |
-| WorkflowFailureRate | warning | > 5% failing | Check ChatDev Money |
+### Manual Deployment
 
-### AlertManager Web UI
-```
-http://localhost:9093
-```
-
-### Test Alerts
 ```bash
-# Send test alert
-curl -X POST http://localhost:9093/api/v1/alerts \
-  -H 'Content-Type: application/json' \
-  -d '[{"labels":{"alertname":"TestAlert","severity":"warning"},"annotations":{"summary":"Test alert"}}]'
+# Deploy to production
+./scripts/deploy.sh [tag]
+
+# Rollback to previous version
+./scripts/rollback.sh [tag]
+
+# Run smoke tests
+./scripts/smoke_test.sh
+python3 backend/test_ticket4_smoke.py
 ```
 
-### Setup Alerting
+### Blue-Green Deployment
+
+1. **Green instances** scaled up alongside blue
+2. **Health checks** verify green is healthy
+3. **Traffic switches** to green (nginx handles this)
+4. **Blue instances** scaled down
+5. **Automatic rollback** if smoke tests fail
+
+### Environment Variables
+
 ```bash
-./setup_alerting.sh
+# Required for production
+JWT_SECRET=your-256-bit-secret
+REDIS_PASSWORD=strong-redis-password
+REGISTRY=ghcr.io/casss20
+IMAGE_TAG=v1.2.3
+
+# Optional
+USE_REAL_CHATDEV=true
+CHATDEV_API_URL=http://chatdev:8000
+GRAFANA_PASSWORD=admin
+SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 ```
 
-### Configure Slack Notifications
-Edit `alertmanager.yml`:
-```yaml
-global:
-  slack_api_url: 'YOUR_WEBHOOK_URL'
-```
+### Docker Compose Production
 
----
-
-## Troubleshooting (Alerting)
-
-### AlertManager Not Starting
 ```bash
-# Check config validity
-amtool check-config alertmanager.yml
+# Start production stack
+docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
 
-# Check logs
-tail -f /tmp/alertmanager.log
-```
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f adapter
 
-### Alerts Not Firing
-```bash
-# Check Prometheus targets
-curl http://localhost:9090/api/v1/targets
-
-# Check alert rules
-curl http://localhost:9090/api/v1/rules
-
-# Check active alerts
-curl http://localhost:9090/api/v1/alerts
+# Scale adapter instances
+docker-compose -f docker-compose.prod.yml up -d --scale adapter=5
 ```
 
 ---
@@ -80,7 +77,7 @@ curl http://localhost:9090/api/v1/alerts
 |--------|---------|--------|
 | 1 | Observability | ✅ Complete |
 | 2 | Alerting | ✅ Complete |
-| 3 | Security | ⏳ |
-| 4 | CI/CD | ⏳ |
-| 5 | Disaster Recovery | ⏳ |
+| 3 | Security Hardening | ✅ Complete |
+| 4 | CI/CD + Rollback | ✅ Complete |
+| 5 | Disaster Recovery | ⏳ Next |
 
