@@ -4,7 +4,7 @@
 import os
 import json
 import hashlib
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -68,7 +68,7 @@ class EventStream:
     
     def __init__(self, storage_path: str = "./events"):
         self.storage_path = Path(storage_path)
-        self.storage_path.mkdir(exist_ok=True)
+        self.storage_path.mkdir(parents=True, exist_ok=True)
         self.consumers: List[Callable] = []
         self.event_buffer: List[GovernanceEvent] = []
         self.buffer_size = 100

@@ -11,12 +11,39 @@ import random
 # Import additional routers
 from chatdev_workflow_routes import router as chatdev_router
 from ledger_routes import router as ledger_router
+from governance_v2.routes import router as governance_v2_router, set_governance_system
+
+# Import governance system
+from governance_v2 import LedgerGovernanceSystem
 
 app = FastAPI(title="Agent World", version="1.0")
+
+# Governance system instance (initialized on startup)
+governance_system = None
+
+# Dependency to get governance system
+def get_governance_system():
+    return governance_system
+
+@app.on_event("startup")
+async def startup_event():
+    global governance_system
+    # Initialize Ledger 2.0 governance system
+    governance_system = LedgerGovernanceSystem(ledger_sovereign=None)
+    set_governance_system(governance_system)  # Set for routes
+    await governance_system.start()
+    print("✅ Ledger 2.0 Governance System initialized")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if governance_system:
+        governance_system.stop()
+        print("✅ Ledger 2.0 Governance System stopped")
 
 # Include additional routers
 app.include_router(chatdev_router)
 app.include_router(ledger_router)
+app.include_router(governance_v2_router)
 
 # CORS for frontend
 app.add_middleware(

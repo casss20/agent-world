@@ -1,6 +1,8 @@
 # Ledger 2.0 Governance System
 ## All Phases Integrated
 
+import asyncio
+
 from .phase1_core import (
     CapabilityIssuer,
     CapabilityToken,

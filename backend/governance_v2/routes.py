@@ -10,11 +10,17 @@ from datetime import datetime
 
 router = APIRouter(prefix="/governance/v2", tags=["governance-v2"])
 
-# Dependency to get governance system
+# This will be set by main.py when including the router
+governance_system_instance = None
+
+def set_governance_system(gs):
+    global governance_system_instance
+    governance_system_instance = gs
+
 def get_governance_system():
-    # This would be injected from main.py
-    from ..main import governance_system
-    return governance_system
+    if governance_system_instance is None:
+        raise HTTPException(status_code=503, detail="Governance system not initialized")
+    return governance_system_instance
 
 
 # ============ Models ============
