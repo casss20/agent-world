@@ -8,6 +8,10 @@ import uuid
 from datetime import datetime
 import random
 
+# Import OpenTelemetry
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from telemetry import setup_telemetry, shutdown_telemetry, get_logger
+
 # Import security middleware
 from security_middleware import SecurityMiddleware
 
@@ -25,7 +29,20 @@ from lifecycle_manager import lifecycle_router
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
 
-app = FastAPI(title="Agent World", version="1.0")
+# Setup OpenTelemetry
+tracer_provider, meter_provider, logger_provider = setup_telemetry(
+    service_name="agent-world-backend",
+    service_version="2.0.0",
+    environment="production"
+)
+
+# Get structured logger
+logger = get_logger("agent_world")
+
+app = FastAPI(title="Agent World", version="2.0.0")
+
+# Instrument FastAPI with OpenTelemetry
+FastAPIInstrumentor.instrument_app(app)
 
 # Add tracing middleware for observability
 app.add_middleware(TracingMiddleware)
@@ -52,9 +69,13 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    logger.info("Shutting down Agent World")
     if governance_system:
         governance_system.stop()
-        print("✅ Ledger 2.0 Governance System stopped")
+        logger.info("Ledger 2.0 Governance System stopped")
+    # Shutdown OpenTelemetry
+    shutdown_telemetry()
+    logger.info("Telemetry shutdown complete")
 
 # Include additional routers
 app.include_router(chatdev_router)

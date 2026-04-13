@@ -1,9 +1,12 @@
 # Prometheus Configuration
-# Ticket 1: Observability Stack
+# Observability stack for Agent World
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: agent-world
+    replica: '{{.ExternalURL}}'
 
 rule_files:
   - "alert_rules.yml"
@@ -14,13 +17,27 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # AgentVerse Adapter Instances
+  # OpenTelemetry Collector
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888', 'otel-collector:8889']
+    scrape_interval: 10s
+
+  # Agent World Backend
+  - job_name: 'agent-world-backend'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Adapter Instances
   - job_name: 'adapter'
     static_configs:
       - targets:
-        - 'localhost:8004'
-        - 'localhost:8005'
-        - 'localhost:8006'
+        - 'adapter-1:8000'
+        - 'adapter-2:8000'
+        - 'adapter-3:8000'
     metrics_path: '/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s
@@ -28,11 +45,21 @@ scrape_configs:
   # Redis
   - job_name: 'redis'
     static_configs:
-      - targets: ['localhost:9121']  # redis_exporter
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
     scrape_interval: 15s
 
   # Nginx
   - job_name: 'nginx'
     static_configs:
-      - targets: ['localhost:9113']  # nginx_exporter
+      - targets: ['nginx-exporter:9113']
     scrape_interval: 15s
+
+# Remote write for long-term storage (optional)
+# remote_write:
+#   - url: http://cortex:9009/api/prom/push
