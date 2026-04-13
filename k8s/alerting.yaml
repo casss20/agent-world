@@ -1,0 +1,255 @@
+# Agent World: Prometheus Alerting Rules
+# Production alerts for multi-agent system monitoring
+
+groups:
+# ============================================================================
+# Critical Alerts (Page immediately)
+# ============================================================================
+- name: critical
+  interval: 30s
+  rules:
+  
+  # High error rate
+  - alert: HighErrorRate
+    expr: |
+      (
+        sum(rate(agentworld_requests_total{status_code=~"5.."}[5m])) 
+        / 
+        sum(rate(agentworld_requests_total[5m]))
+      ) > 0.05
+    for: 2m
+    labels:
+      severity: critical
+      team: platform
+    annotations:
+      summary: "High error rate detected"
+      description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+      runbook_url: "https://wiki.internal/agent-world/runbooks/high-error-rate"
+  
+  # Agent down (no heartbeat)
+  - alert: AgentDown
+    expr: |
+      agentworld_agents_by_status{status="offline"} > 0
+    for: 5m
+    labels:
+      severity: critical
+      team: platform
+    annotations:
+      summary: "Agent has gone offline"
+      description: "Agent(s) have been offline for more than 5 minutes"
+  
+  # Service unavailable
+  - alert: ServiceDown
+    expr: |
+      up{job="agent-world-backend"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      team: platform
+    annotations:
+      summary: "Agent World backend is down"
+      description: "All instances of the backend are unavailable"
+  
+  # DLQ growing rapidly
+  - alert: DeadLetterQueueGrowing
+    expr: |
+      (
+        agentworld_task_queue_depth{status="failed"} > 100
+      ) and (
+        increase(agentworld_task_queue_depth{status="failed"}[10m]) > 50
+      )
+    for: 5m
+    labels:
+      severity: critical
+      team: platform
+    annotations:
+      summary: "Dead letter queue is growing rapidly"
+      description: "DLQ has {{ $value }} tasks and is growing"
+  
+  # Audit integrity failure
+  - alert: AuditIntegrityFailure
+    expr: |
+      agentworld_audit_integrity_failed > 0
+    for: 1m
+    labels:
+      severity: critical
+      team: security
+    annotations:
+      summary: "Audit log integrity compromised"
+      description: "Audit log chain verification has failed"
+
+# ============================================================================
+# Warning Alerts (Notify but don't page)
+# ============================================================================
+- name: warning
+  interval: 1m
+  rules:
+  
+  # High latency
+  - alert: HighLatency
+    expr: |
+      histogram_quantile(0.95, 
+        sum(rate(agentworld_request_duration_seconds_bucket[5m])) by (le)
+      ) > 2
+    for: 5m
+    labels:
+      severity: warning
+      team: platform
+    annotations:
+      summary: "High request latency"
+      description: "95th percentile latency is {{ $value }}s"
+  
+  # Task queue depth growing
+  - alert: TaskQueueDepthHigh
+    expr: |
+      agentworld_task_queue_depth{status="pending"} > 1000
+    for: 10m
+    labels:
+      severity: warning
+      team: platform
+    annotations:
+      summary: "Task queue depth is high"
+      description: "{{ $value }} tasks are pending in the queue"
+  
+  # Agent load high
+  - alert: AgentLoadHigh
+    expr: |
+      (
+        sum by (agent_id) (agentworld_agent_current_load) 
+        / 
+        sum by (agent_id) (agentworld_agent_max_load)
+      ) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      team: platform
+    annotations:
+      summary: "Agent load is high"
+      description: "Agent {{ $labels.agent_id }} is at {{ $value | humanizePercentage }} capacity"
+  
+  # Room membership high
+  - alert: RoomCapacityWarning
+    expr: |
+      (
+        agentworld_room_members 
+        / 
+        ignoring(room_id) group_left agentworld_room_max_members
+      ) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      team: platform
+    annotations:
+      summary: "Room approaching capacity"
+      description: "Room {{ $labels.room_id }} is at {{ $value | humanizePercentage }} capacity"
+  
+  # WebSocket connections dropping
+  - alert: WebSocketConnectionsDropping
+    expr: |
+      (
+        rate(agentworld_websocket_disconnections_total[5m]) > 10
+      ) and (
+        rate(agentworld_websocket_connections_total[5m]) < 
+        rate(agentworld_websocket_disconnections_total[5m])
+      )
+    for: 5m
+    labels:
+      severity: warning
+      team: platform
+    annotations:
+      summary: "WebSocket connections unstable"
+      description: "More disconnections than connections in the last 5 minutes"
+  
+  # Rate limiting triggered
+  - alert: RateLimitingTriggered
+    expr: |
+      increase(agentworld_rate_limit_hits_total[5m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+      team: security
+    annotations:
+      summary: "Rate limiting is being triggered frequently"
+      description: "{{ $value }} rate limit hits in the last 5 minutes"
+  
+  # Task failures increasing
+  - alert: TaskFailuresIncreasing
+    expr: |
+      (
+        rate(agentworld_agent_tasks_failed_total[10m]) > 0.1
+      ) and (
+        increase(agentworld_agent_tasks_failed_total[10m]) > 10
+      )
+    for: 10m
+    labels:
+      severity: warning
+      team: platform
+    annotations:
+      summary: "Task failures are increasing"
+      description: "{{ $value }} tasks have failed in the last 10 minutes"
+
+# ============================================================================
+# Info Alerts (Log but don't notify)
+# ============================================================================
+- name: info
+  interval: 5m
+  rules:
+  
+  # New agents registered
+  - alert: NewAgentRegistered
+    expr: |
+      increase(agentworld_agents_registered_total[1h]) > 0
+    labels:
+      severity: info
+    annotations:
+      summary: "New agent registered"
+      description: "{{ $value }} new agent(s) registered in the last hour"
+  
+  # High task completion rate
+  - alert: HighTaskCompletion
+    expr: |
+      rate(agentworld_agent_tasks_completed_total[5m]) > 100
+    labels:
+      severity: info
+    annotations:
+      summary: "High task completion rate"
+      description: "{{ $value }} tasks completed per second"
+
+# ============================================================================
+# Business Alerts (Business metrics)
+# ============================================================================
+- name: business
+  interval: 5m
+  rules:
+  
+  # Revenue drop
+  - alert: RevenueDrop
+    expr: |
+      (
+        sum(rate(agentworld_revenue_total[1h])) 
+        / 
+        sum(rate(agentworld_revenue_total[1h] offset 1d))
+      ) < 0.5
+    for: 30m
+    labels:
+      severity: warning
+      team: business
+    annotations:
+      summary: "Revenue has dropped significantly"
+      description: "Revenue is {{ $value | humanizePercentage }} of yesterday"
+  
+  # Content published drop
+  - alert: ContentPublishDrop
+    expr: |
+      (
+        sum(rate(agentworld_content_published_total[1h])) 
+        / 
+        sum(rate(agentworld_content_published_total[1h] offset 1d))
+      ) < 0.5
+    for: 1h
+    labels:
+      severity: warning
+      team: business
+    annotations:
+      summary: "Content publishing has slowed"
+      description: "Publishing rate is {{ $value | humanizePercentage }} of yesterday"

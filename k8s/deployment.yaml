@@ -1,12 +1,54 @@
+# Agent World: Deployment & Alerting Configuration
+# Kubernetes manifests and alerting rules for production operations
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-world
+  labels:
+    name: agent-world
+    environment: production
+
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-world-config
+  namespace: agent-world
+data:
+  DATABASE_URL: "postgresql://user:pass@postgres:5432/agentworld"
+  REDIS_URL: "redis://redis:6379/0"
+  LOG_LEVEL: "INFO"
+  HEARTBEAT_INTERVAL: "30"
+  TASK_TIMEOUT: "300"
+  MAX_RETRIES: "3"
+
+---
+# Secret for sensitive configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-world-secrets
+  namespace: agent-world
+type: Opaque
+stringData:
+  JWT_SECRET: "${JWT_SECRET}"
+  DATABASE_PASSWORD: "${DB_PASSWORD}"
+  OPENAI_API_KEY: "${OPENAI_API_KEY}"
+
+---
+# Deployment for backend API
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agent-world-governance
-  namespace: production
+  name: agent-world-backend
+  namespace: agent-world
   labels:
     app: agent-world
-    component: governance
-    version: v2.0.0
+    component: backend
 spec:
   replicas: 3
   strategy:
@@ -17,200 +59,103 @@ spec:
   selector:
     matchLabels:
       app: agent-world
-      component: governance
+      component: backend
   template:
     metadata:
       labels:
         app: agent-world
-        component: governance
-        version: v2.0.0
+        component: backend
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
       containers:
-      # Nginx reverse proxy
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-          name: http
-        - containerPort: 443
-          name: https
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        - name: tls-certs
-          mountPath: /etc/nginx/ssl
-          readOnly: true
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "50m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
-        livenessProbe:
-          httpGet:
-            path: /governance/v2/health/live
-            port: 80
-          initialDelaySeconds: 10
-          periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /governance/v2/health/ready
-            port: 80
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 5
-      
-      # FastAPI backend
-      - name: governance
-        image: your-registry/agent-world-governance:v2.0.0
+      - name: backend
+        image: ghcr.io/casss20/agent-world-backend:latest
         ports:
         - containerPort: 8000
-          name: api
+          name: http
         env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: agent-world-config
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: agent-world-config
+              key: REDIS_URL
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
-              name: governance-secrets
-              key: jwt-secret
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: governance-secrets
-              key: database-url
-        - name: REDIS_URL
-          value: "redis://redis:6379/0"
-        - name: LOG_LEVEL
-          value: "info"
+              name: agent-world-secrets
+              key: JWT_SECRET
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "200m"
-          limits:
             memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
             cpu: "1000m"
         livenessProbe:
           httpGet:
-            path: /governance/v2/health/live
+            path: /health/live
             port: 8000
-          initialDelaySeconds: 10
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /governance/v2/health/ready
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 5
-        startupProbe:
-          httpGet:
-            path: /governance/v2/health/startup
+            path: /health/ready
             port: 8000
           initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
           failureThreshold: 30
-      
-      volumes:
-      - name: nginx-config
-        configMap:
-          name: nginx-config
-      - name: tls-certs
-        secret:
-          secretName: tls-certs
-      
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - agent-world
-              topologyKey: kubernetes.io/hostname
 
 ---
+# Service for backend
 apiVersion: v1
 kind: Service
 metadata:
-  name: agent-world-governance
-  namespace: production
+  name: agent-world-backend
+  namespace: agent-world
   labels:
     app: agent-world
-    component: governance
+    component: backend
 spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 80
-    protocol: TCP
-    name: http
-  - port: 443
-    targetPort: 443
-    protocol: TCP
-    name: https
   selector:
     app: agent-world
-    component: governance
+    component: backend
+  ports:
+  - port: 80
+    targetPort: 8000
+    name: http
+  type: ClusterIP
 
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: nginx-config
-  namespace: production
-data:
-  nginx.conf: |
-    # See nginx/nginx.conf for full configuration
-    # This is a placeholder - use the full config from the file
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: governance-secrets
-  namespace: production
-type: Opaque
-stringData:
-  jwt-secret: "change-this-in-production"
-  database-url: "postgresql://user:pass@db:5432/governance"
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: tls-certs
-  namespace: production
-type: kubernetes.io/tls
-data:
-  tls.crt: "BASE64_ENCODED_CERT"
-  tls.key: "BASE64_ENCODED_KEY"
-
----
+# Horizontal Pod Autoscaler
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: agent-world-governance-hpa
-  namespace: production
+  name: agent-world-backend-hpa
+  namespace: agent-world
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: agent-world-governance
+    name: agent-world-backend
   minReplicas: 3
   maxReplicas: 10
   metrics:
@@ -239,3 +184,127 @@ spec:
       - type: Percent
         value: 10
         periodSeconds: 60
+
+---
+# Ingress with TLS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-world-ingress
+  namespace: agent-world
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.agentworld.io
+    secretName: agent-world-tls
+  rules:
+  - host: api.agentworld.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: agent-world-backend
+            port:
+              number: 80
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-world-pdb
+  namespace: agent-world
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: agent-world
+      component: backend
+
+---
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-world-network-policy
+  namespace: agent-world
+spec:
+  podSelector:
+    matchLabels:
+      app: agent-world
+      component: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-world-sa
+  namespace: agent-world
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/agent-world-role
+
+---
+# Prometheus ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: agent-world-metrics
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+    - agent-world
+  selector:
+    matchLabels:
+      app: agent-world
+      component: backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s

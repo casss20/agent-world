@@ -17,11 +17,18 @@ from ledger_routes import router as ledger_router
 from governance_v2.routes import router as governance_v2_router, set_governance_system
 from governance_v2.health import set_governance_system as set_health_governance
 from hardened_mutations import router as hardened_router
+from realtime_streaming import router as realtime_router
+from observability import metrics_router, TracingMiddleware
+from retry_controller import router as dlq_router
+from lifecycle_manager import lifecycle_router
 
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
 
 app = FastAPI(title="Agent World", version="1.0")
+
+# Add tracing middleware for observability
+app.add_middleware(TracingMiddleware)
 
 # Add security middleware FIRST (before CORS)
 app.add_middleware(SecurityMiddleware)
@@ -54,6 +61,10 @@ app.include_router(chatdev_router)
 app.include_router(ledger_router)
 app.include_router(governance_v2_router)
 app.include_router(hardened_router, prefix="/api/v1", tags=["hardened-mutations"])
+app.include_router(realtime_router)
+app.include_router(metrics_router)
+app.include_router(dlq_router)
+app.include_router(lifecycle_router)
 
 # CORS for frontend
 app.add_middleware(
