@@ -14,40 +14,53 @@ from typing import Optional, List
 from enum import Enum as PyEnum
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, or_, func
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from pydantic import BaseModel, Field
-import redis.asyncio as redis
+import redis.asyncio as redis_async
+
+# Import actual models
+from models import (
+    Agent, Room, AgentRoom, AgentSession, Business,
+    TaskQueue, BlackboardEvent, RoomMessage, RoomInvitation,
+    AgentStatus, TaskStatus, RoomType, BusinessScope,
+    BlackboardOperation, get_room_member_count
+)
+from ledger_client import LedgerClient, get_ledger_client
 
 # ============================================================================
-# ENUMS AND MODELS
+# DEPENDENCIES
 # ============================================================================
 
-class AgentStatus(str, PyEnum):
-    OFFLINE = "offline"
-    STARTING = "starting"
-    ONLINE = "online"
-    IDLE = "idle"
-    BUSY = "busy"
-    PAUSED = "paused"
-    ERROR = "error"
-    SHUTDOWN = "shutdown"
+def get_db():
+    """Get database session - override with actual dependency"""
+    # This should be overridden by the actual FastAPI dependency
+    raise NotImplementedError("Override with actual database dependency")
 
-class TaskStatus(str, PyEnum):
-    PENDING = "pending"
-    CLAIMED = "claimed"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+def get_redis():
+    """Get Redis client - override with actual dependency"""
+    # This should be overridden by the actual FastAPI dependency
+    raise NotImplementedError("Override with actual Redis dependency")
 
-class RoomType(str, PyEnum):
-    FORGE = "forge"
-    RESEARCH = "research"
-    MARKET = "market"
-    SYSTEM = "system"
+def get_current_agent():
+    """Get current authenticated agent - override with actual auth"""
+    raise NotImplementedError("Override with actual authentication")
+
+def get_current_business():
+    """Get current business/tenant - override with actual auth"""
+    raise NotImplementedError("Override with actual authentication")
+
+def get_current_user():
+    """Get current user - override with actual auth"""
+    raise NotImplementedError("Override with actual authentication")
+
+# Event bus stub - replace with actual implementation
+class EventBus:
+    async def publish(self, channel: str, event: dict):
+        pass
+
+event_bus = EventBus()
 
 # Valid state transitions
 VALID_STATUS_TRANSITIONS = {
@@ -59,6 +72,15 @@ VALID_STATUS_TRANSITIONS = {
     AgentStatus.PAUSED: {AgentStatus.IDLE, AgentStatus.BUSY, AgentStatus.OFFLINE},
     AgentStatus.ERROR: {AgentStatus.OFFLINE, AgentStatus.STARTING},
     AgentStatus.SHUTDOWN: {AgentStatus.OFFLINE},
+}
+
+# Agent type limits per business
+AGENT_TYPE_LIMITS = {
+    "scout": 10,
+    "maker": 5,
+    "merchant": 5,
+    "analyst": 3,
+    "governor": 2,
 }
 
 # ============================================================================
