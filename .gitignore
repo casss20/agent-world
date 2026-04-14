@@ -86,3 +86,9 @@ temp/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Claude AI tools (not for repo)
+.claude/
+
+# Agent file workspace (runtime files)
+workspace/

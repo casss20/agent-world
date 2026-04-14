@@ -12,3 +12,13 @@ alembic==1.13.1
 # Utilities
 python-dotenv==1.0.0
 redis==5.0.1
+
+# LLM Providers (use any one or all)
+openai>=1.12.0          # Used for OpenAI AND Ollama (compatible API)
+anthropic>=0.20.0       # Used for Anthropic Claude
+
+# Async HTTP (for http_tool)
+httpx>=0.26.0
+
+# Web search (free, no API key)
+duckduckgo-search>=4.4.0

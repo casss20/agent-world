@@ -5,6 +5,7 @@ import { BusinessProvider } from './providers/BusinessProvider'
 import { LedgerShell } from './components/shell/LedgerShell'
 import { GlobalHQ } from './pages/GlobalHQ'
 import { BusinessWorkspace } from './components/businesses/BusinessWorkspace'
+import SpawnPage from './pages/SpawnPage'
 
 // Business Workspace Wrapper
 function BusinessRoute({ businessId }) {
@@ -21,9 +22,10 @@ function App() {
       <ApprovalProvider>
         <LedgerShell>
           <Routes>
-            <Route path="/" element={<GlobalHQ />} />
-            <Route path="/hq" element={<GlobalHQ />} />
-            <Route path="/business/:id" element={<BusinessRouteWrapper />} />
+            <Route path="/"             element={<GlobalHQ />} />
+            <Route path="/hq"           element={<GlobalHQ />} />
+            <Route path="/spawn"        element={<SpawnPage />} />
+            <Route path="/business/:id"   element={<BusinessRouteWrapper />} />
             <Route path="/business/:id/*" element={<BusinessRouteWrapper />} />
           </Routes>
         </LedgerShell>
@@ -41,3 +43,4 @@ function BusinessRouteWrapper() {
 }
 
 export default App
+
