@@ -16,6 +16,7 @@ redis==5.0.1
 # LLM Providers (use any one or all)
 openai>=1.12.0          # Used for OpenAI AND Ollama (compatible API)
 anthropic>=0.20.0       # Used for Anthropic Claude
+litellm>=1.35.0         # Optional: 100+ providers (groq, mistral, bedrock, etc.)
 
 # Async HTTP (for http_tool)
 httpx>=0.26.0
