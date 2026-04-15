@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import "../spawn.css";
 
 
-const API = "http://localhost:8001";
-const WS_BASE = "ws://localhost:8001/api/v1/ws/spawn";
+// Use relative URLs so the Vite dev proxy (vite.config.js → port 8000) handles routing.
+// In production, set VITE_API_URL env var to override.
+const API = import.meta.env.VITE_API_URL || '';
+const WS_BASE = API.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/v1/ws/spawn';
+
 
 const STATUS_COLOR = {
   pending:   "#f59e0b",

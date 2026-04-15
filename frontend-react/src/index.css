@@ -1,34 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ── Agent World Design Tokens ─────────────────────────────────── */
+:root {
+  --bg-primary:    #050a14;
+  --bg-surface:    rgba(10, 22, 40, 0.95);
+  --bg-elevated:   #0a1628;
+  --color-cyan:    #00f3ff;
+  --color-pink:    #ff006e;
+  --color-muted:   #7fb3d5;
+  --color-text:    #e0e1dd;
+  --color-subtext: #64748b;
+  --border-subtle: rgba(0, 243, 255, 0.2);
+  --border-active: #00f3ff;
+  --font-display:  'Orbitron', monospace;
+  --font-body:     'Rajdhani', 'Segoe UI', sans-serif;
+  --glow-cyan:     0 0 20px rgba(0, 243, 255, 0.4);
+  --glow-pink:     0 0 20px rgba(255, 0, 110, 0.4);
+  --radius:        8px;
+  --transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Glassmorphism tokens ── */
+  --glass-bg:         rgba(8, 18, 36, 0.45);
+  --glass-bg-light:   rgba(255, 255, 255, 0.04);
+  --glass-blur:        12px;
+  --glass-blur-heavy:  20px;
+  --glass-border:      rgba(255, 255, 255, 0.09);
+  --glass-border-cyan: rgba(0, 243, 255, 0.18);
+  --glass-border-pink: rgba(255, 0, 110, 0.18);
+  --glass-shadow:      0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --glass-shadow-cyan: 0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(0, 243, 255, 0.1);
+}
+
+/* ── Base ──────────────────────────────────────────────────────── */
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--color-text);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #12121a;
-}
-
+/* ── Custom scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb {
-  background: #2e2e3e;
-  border-radius: 4px;
+  background: rgba(0, 243, 255, 0.25);
+  border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #3e3e4e;
+  background: rgba(0, 243, 255, 0.5);
 }
 
-/* Line clamp utilities */
+/* ── Glassmorphism utility classes ─────────────────────────────── */
+
+/* Base glass — neutral frosted panel */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Cyan-tinted glass — for primary interactive elements */
+.glass-cyan {
+  background: rgba(0, 30, 50, 0.42);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border-cyan);
+  box-shadow: var(--glass-shadow-cyan), 0 0 0 1px rgba(0, 243, 255, 0.06) inset;
+}
+
+/* Pink-tinted glass — for warnings / accent elements */
+.glass-pink {
+  background: rgba(40, 5, 20, 0.42);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border-pink);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 0, 110, 0.1);
+}
+
+/* Heavy blur glass — for modal overlays / elevated surfaces */
+.glass-heavy {
+  background: rgba(5, 12, 24, 0.6);
+  backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Card shorthand — glass + rounded + padding */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.glass-card:hover {
+  border-color: rgba(0, 243, 255, 0.25);
+  box-shadow: var(--glass-shadow-cyan);
+}
+
+/* ── Tailwind utilities ────────────────────────────────────────── */
 .line-clamp-4 {
   display: -webkit-box;
   -webkit-line-clamp: 4;
@@ -42,3 +125,4 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+

@@ -92,3 +92,9 @@ temp/
 
 # Agent file workspace (runtime files)
 workspace/
+
+# Generated caches and runtime artifacts
+claudemap-cache.json
+backend/load_test_*_results.json
+backend/*.json
+

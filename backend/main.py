@@ -25,6 +25,7 @@ from realtime_streaming import router as realtime_router
 from observability import metrics_router, TracingMiddleware
 from retry_controller import router as dlq_router
 from lifecycle_manager import lifecycle_router
+from spawn_routes import router as spawn_router, on_startup as spawn_on_startup
 
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
@@ -60,12 +61,21 @@ def get_governance_system():
 @app.on_event("startup")
 async def startup_event():
     global governance_system
-    # Initialize Ledger 2.0 governance system
+
+    # ── Ledger 2.0 Governance System ──────────────────────────────────
     governance_system = LedgerGovernanceSystem(ledger_sovereign=None)
-    set_governance_system(governance_system)  # Set for routes
-    set_health_governance(governance_system)  # Set for health checks
+    set_governance_system(governance_system)
+    set_health_governance(governance_system)
     await governance_system.start()
     print("✅ Ledger 2.0 Governance System initialized")
+
+    # ── Spawn executor + broadcast drain ──────────────────────────────
+    await spawn_on_startup()
+    print("✅ Spawn executor + broadcast drain started")
+
+    # ── Background agent simulation ────────────────────────────────────
+    asyncio.create_task(background_simulation())
+    print("✅ Background simulation started")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -78,6 +88,7 @@ async def shutdown_event():
     logger.info("Telemetry shutdown complete")
 
 # Include additional routers
+app.include_router(spawn_router)          # ← spawn / agent pipeline (POST /api/v1/spawn, etc.)
 app.include_router(chatdev_router)
 app.include_router(ledger_router)
 app.include_router(governance_v2_router)
@@ -383,9 +394,7 @@ async def spawn_new_agent(name: str, role: str):
     })
 
 # Background simulation (agents do random things)
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(background_simulation())
+# NOTE: background_simulation() is now started in the single startup_event() above.
 
 async def background_simulation():
     while True:

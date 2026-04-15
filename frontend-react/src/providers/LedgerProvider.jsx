@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Vite exposes env vars via import.meta.env (not process.env)
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 
 // Ledger Context Shape
 const LedgerContext = createContext({

@@ -1,8 +1,9 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useLedger } from '../../providers/LedgerProvider';
 import { CommandBar } from './CommandBar';
 import { ApprovalQueue } from './ApprovalQueue';
-import { Crown, Activity, Building2, ChevronDown } from 'lucide-react';
+import { Crown, Activity, Building2 } from 'lucide-react';
 
 export function LedgerShell({ children }) {
   const { 
@@ -85,25 +86,25 @@ export function LedgerShell({ children }) {
         {/* Sidebar Navigation */}
         <aside className="w-64 bg-gray-900 border-r border-gray-800">
           <nav className="p-4 space-y-1">
-            <NavItem icon="📊" label="Global HQ" active={currentBusiness?.id === 'global'} />
+            <NavItem href="/hq"       icon="📊" label="Global HQ" />
+            <NavItem href="/spawn"    icon="⚡" label="Spawn Agents" />
             <div className="pt-4 pb-2">
               <p className="text-xs font-medium text-gray-500 uppercase px-3">Businesses</p>
             </div>
-            <NavItem icon="1️⃣" label="Content Arbitrage" />
-            <NavItem icon="2️⃣" label="SaaS Tools" />
-            <NavItem icon="3️⃣" label="Affiliate Sites" />
-            <NavItem icon="4️⃣" label="AI Products" />
-            <NavItem icon="5️⃣" label="Courses" />
-            <NavItem icon="6️⃣" label="Consulting" />
-            <NavItem icon="7️⃣" label="Newsletter" />
-            <NavItem icon="8️⃣" label="Community" />
-            
+            <NavItem href="/business/1" icon="1️⃣" label="Content Arbitrage" />
+            <NavItem href="/business/2" icon="2️⃣" label="SaaS Tools" />
+            <NavItem href="/business/3" icon="3️⃣" label="Affiliate Sites" />
+            <NavItem href="/business/4" icon="4️⃣" label="AI Products" />
+            <NavItem href="/business/5" icon="5️⃣" label="Courses" />
+            <NavItem href="/business/6" icon="6️⃣" label="Consulting" />
+            <NavItem href="/business/7" icon="7️⃣" label="Newsletter" />
+            <NavItem href="/business/8" icon="8️⃣" label="Community" />
+
             <div className="pt-4 pb-2">
               <p className="text-xs font-medium text-gray-500 uppercase px-3">System</p>
             </div>
-            <NavItem icon="⚙️" label="Constitution" />
-            <NavItem icon="🧠" label="Memory" />
-            <NavItem icon="📋" label="Audit" />
+            <NavItem href="/approvals" icon="🔔" label="Approvals" badge={pendingApprovals?.length} />
+            <NavItem href="/audit"     icon="📋" label="Audit Log" />
           </nav>
 
           {/* Mini Approval Queue */}
@@ -121,18 +122,25 @@ export function LedgerShell({ children }) {
   );
 }
 
-function NavItem({ icon, label, active }) {
+function NavItem({ href, icon, label, badge }) {
+  const { pathname } = useLocation();
+  const active = pathname === href || (href !== '/' && pathname.startsWith(href));
   return (
-    <a
-      href="#"
+    <Link
+      to={href || '/'}
       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-        active 
-          ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' 
+        active
+          ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
           : 'text-gray-400 hover:text-white hover:bg-gray-800'
       }`}
     >
       <span>{icon}</span>
-      <span>{label}</span>
-    </a>
+      <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+          {badge}
+        </span>
+      )}
+    </Link>
   );
 }
