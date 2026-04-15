@@ -57,7 +57,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Extract metadata
+      - name: Debug - List files
+        run: |
+          echo "=== Repository structure ==="
+          ls -la
+          echo "=== Backend directory ==="
+          ls -la backend/
+          echo "=== Dockerfile location ==="
+          find . -name "Dockerfile" -type f
         id: meta
         uses: docker/metadata-action@v5
         with:
