@@ -1,0 +1,9 @@
+{
+  "dashboard": {
+    "title": "Agent World - Capacity Planning",
+    "tags": ["capacity", "planning", "scaling"],
+    "timezone": "UTC",
+    "schemaVersion": 36,
+    "refresh": "30s"
+  }
+}
