@@ -9,6 +9,8 @@ import { BusinessWorkspace } from './components/businesses/BusinessWorkspace'
 import SpawnPage from './pages/SpawnPage'
 import { AuditLogViewer } from './components/audit/AuditLogViewer'
 import { ApprovalGate } from './components/governance/ApprovalGate'
+import ChannelsPage from './pages/ChannelsPage'
+import AgentTemplatesPage from './pages/AgentTemplatesPage'
 
 // Business Workspace Wrapper
 function BusinessRoute({ businessId }) {
@@ -30,6 +32,8 @@ function App() {
             <Route path="/spawn"        element={<SpawnPage />} />
             <Route path="/audit"        element={<AuditLogViewer />} />
             <Route path="/approvals"    element={<ApprovalGate />} />
+            <Route path="/channels"     element={<ChannelsPage />} />
+            <Route path="/agents"       element={<AgentTemplatesPage />} />
             <Route path="/business/:id"   element={<BusinessRouteWrapper />} />
             <Route path="/business/:id/*" element={<BusinessRouteWrapper />} />
           </Routes>

@@ -101,7 +101,13 @@ export function LedgerShell({ children }) {
             <NavItem href="/business/8" icon="8️⃣" label="Community" />
 
             <div className="pt-4 pb-2">
-              <p className="text-xs font-medium text-gray-500 uppercase px-3">System</p>
+              <p className="text-xs font-medium text-gray-500 uppercase px-3">Commerce</p>
+            </div>
+            <NavItem href="/agents"    icon="🧠" label="Named Agents" />
+            <NavItem href="/channels"  icon="🔌" label="Channels" />
+
+            <div className="pt-4 pb-2">
+              <p className="text-xs font-medium text-gray-500 uppercase px-3">Operations</p>
             </div>
             <NavItem href="/approvals" icon="🔔" label="Approvals" badge={pendingApprovals?.length} />
             <NavItem href="/audit"     icon="📋" label="Audit Log" />

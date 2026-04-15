@@ -26,6 +26,10 @@ from observability import metrics_router, TracingMiddleware
 from retry_controller import router as dlq_router
 from lifecycle_manager import lifecycle_router
 from spawn_routes import router as spawn_router, on_startup as spawn_on_startup
+from channel_routes import router as channel_router
+from agent_templates import seed_agent_templates
+from channel_registry import get_channel_registry
+from ledger_router import get_ledger_router
 
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
@@ -77,6 +81,29 @@ async def startup_event():
     asyncio.create_task(background_simulation())
     print("✅ Background simulation started")
 
+    # ── Channel Registry ───────────────────────────────────────────────
+    get_channel_registry()   # warm the singleton (loads channels_config.json)
+    get_ledger_router()      # warm the Ledger Router
+    print("✅ Channel Registry and Ledger Router ready")
+
+    # ── Seed named agent templates ─────────────────────────────────────
+    try:
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        import os
+        DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agentworld.db")
+        engine  = create_engine(DATABASE_URL, pool_pre_ping=True)
+        Session = sessionmaker(bind=engine)
+        db      = Session()
+        created = await seed_agent_templates(db)
+        db.close()
+        if created:
+            print(f"✅ Seeded {created} named agent templates (Nova/Forge/Pixel/Cipher/Ultron)")
+        else:
+            print("✅ Named agent templates already seeded")
+    except Exception as e:
+        print(f"⚠️  Agent template seeding skipped: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down Agent World")
@@ -88,7 +115,8 @@ async def shutdown_event():
     logger.info("Telemetry shutdown complete")
 
 # Include additional routers
-app.include_router(spawn_router)          # ← spawn / agent pipeline (POST /api/v1/spawn, etc.)
+app.include_router(spawn_router)          # spawn / agent pipeline
+app.include_router(channel_router)        # channels, routing, agent templates
 app.include_router(chatdev_router)
 app.include_router(ledger_router)
 app.include_router(governance_v2_router)
