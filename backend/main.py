@@ -31,6 +31,11 @@ from diagnostic_routes import router as diagnostic_router, set_governance_system
 from agent_templates import seed_agent_templates
 from channel_registry import get_channel_registry
 from ledger_router import get_ledger_router
+from design_providers import (
+    router as design_router,
+    initialize_design_service,
+    create_design_service_with_all_providers
+)
 
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
@@ -74,6 +79,20 @@ async def startup_event():
     set_diagnostic_governance(governance_system)  # Wire diagnostics to Ledger
     await governance_system.start()
     print("✅ Ledger 2.0 Governance System initialized")
+
+    # ── Design Providers ─────────────────────────────────────────────
+    import os
+    design_service = create_design_service_with_all_providers(
+        openai_key=os.getenv("OPENAI_API_KEY"),
+        nano_banana_key=os.getenv("NANO_BANANA_API_KEY"),
+        sd_endpoint=os.getenv("STABLE_DIFFUSION_ENDPOINT"),
+        canva_token=os.getenv("CANVA_ACCESS_TOKEN")
+    )
+    initialize_design_service(design_service)
+    providers = design_service.registry.list_available()
+    print(f"✅ Design Providers initialized: {len(providers)} providers")
+    for p in providers:
+        print(f"   • {p['display_name']} ({p['type']}) - ${p['cost_per_image']}/image")
 
     # ── Spawn executor + broadcast drain ──────────────────────────────
     await spawn_on_startup()
@@ -120,6 +139,7 @@ async def shutdown_event():
 app.include_router(spawn_router)          # spawn / agent pipeline
 app.include_router(channel_router)        # channels, routing, agent templates
 app.include_router(diagnostic_router)     # business diagnostics & strategy
+app.include_router(design_router)         # design providers (DALL-E, Nano Banana, etc.)
 app.include_router(chatdev_router)
 app.include_router(ledger_router)
 app.include_router(governance_v2_router)
