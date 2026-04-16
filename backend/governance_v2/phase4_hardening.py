@@ -1,5 +1,9 @@
 # Phase 4: Hardening Implementation
-## Sandboxed Execution + Graceful Degradation + Emergency Systems
+## ResourceGuard (formerly "Sandbox") + Graceful Degradation + Emergency Systems
+## 
+## NOTE: This is a resource limiter, not a true sandbox. Code runs in-process with
+## resource limits via setrlimit(). For true isolation, use subprocess + seccomp
+## or containers (see TODO below).
 
 import asyncio
 import resource
@@ -15,7 +19,7 @@ import threading
 from contextlib import contextmanager
 
 
-class SandboxType(Enum):
+class ResourceLimitType(Enum):
     READ_ONLY = "read_only"      # No side effects, safe
     WRITE_TEMP = "write_temp"    # Can write to temp only
     WRITE_APPROVED = "write_approved"  # Can write if Ledger approved
@@ -23,9 +27,9 @@ class SandboxType(Enum):
 
 
 @dataclass
-class SandboxConfig:
-    """Configuration for sandboxed execution."""
-    sandbox_type: SandboxType
+class ResourceGuardConfig:
+    """Configuration for resource-guarded execution."""
+    limit_type: ResourceLimitType
     max_cpu_time: int = 30        # seconds
     max_memory_mb: int = 256      # MB
     max_file_size_mb: int = 10    # MB
@@ -35,8 +39,8 @@ class SandboxConfig:
 
 
 @dataclass
-class SandboxResult:
-    """Result of sandboxed execution."""
+class ResourceGuardResult:
+    """Result of resource-guarded execution."""
     success: bool
     output: Any
     logs: List[str]
@@ -46,50 +50,66 @@ class SandboxResult:
     error: Optional[str] = None
 
 
-class SandboxedExecutor:
+class ResourceGuard:
     """
-    Executes tools in isolated, resource-constrained environments.
+    Guards resource usage during tool execution.
     
-    Safety guarantees:
-    - CPU time limits
-    - Memory limits
-    - File system restrictions
-    - Network restrictions
-    - Automatic cleanup
+    ## SECURITY NOTE: This is NOT a true sandbox!
+    ## 
+    ## What this does:
+    ## - Sets Unix resource limits (CPU, memory, file size) via setrlimit()
+    ## - Runs code in thread pool with timeout
+    ## - Uses temp directories for isolation
+    ##
+    ## What this does NOT do:
+    ## - Process isolation (same Python process)
+    ## - Syscall filtering (no seccomp/AppArmor)
+    ## - Network isolation
+    ## - Filesystem chroot
+    ##
+    ## TODO: Replace with true sandbox for production:
+    ## - Option A: subprocess + resource.prlimit() + seccomp-bpf
+    ## - Option B: Docker containers with security profiles
+    ## - Option C: gVisor or Firecracker microVMs
+    ##
+    ## Current status: "Sandbox" renamed to "ResourceGuard" to reflect actual
+    ## capabilities. Resource limits are enforced, but code runs in-process.
     """
     
     def __init__(self, ledger):
         self.ledger = ledger
-        self.active_sandboxes: Dict[str, Dict] = {}
+        self.active_guards: Dict[str, Dict] = {}
         
     async def execute(
         self,
         tool_name: str,
         tool_func: Callable,
         args: Dict,
-        config: SandboxConfig,
+        config: ResourceGuardConfig,
         token: Optional[str] = None
-    ) -> SandboxResult:
+    ) -> ResourceGuardResult:
         """
-        Execute a tool in a sandbox.
+        Execute a tool with resource guards.
         
         Flow:
         1. Verify capability token
-        2. Create sandbox environment
-        3. Set resource limits
+        2. Create isolated temp directory
+        3. Set resource limits (Unix setrlimit)
         4. Execute with timeout
         5. Capture output
-        6. Destroy sandbox
+        6. Cleanup
         7. Return result
+        
+        WARNING: Code runs in-process. See class docstring for limitations.
         """
         start_time = datetime.utcnow()
         logs = []
         
         try:
             # Step 1: Verify token if required
-            if config.sandbox_type in [SandboxType.WRITE_APPROVED]:
+            if config.limit_type in [ResourceLimitType.WRITE_APPROVED]:
                 if not token:
-                    return SandboxResult(
+                    return ResourceGuardResult(
                         success=False,
                         output=None,
                         logs=["Token required for write-approved sandbox"],
@@ -100,7 +120,7 @@ class SandboxedExecutor:
                     )
             
             # Step 2: Create temp directory for sandbox
-            temp_dir = tempfile.mkdtemp(prefix=f"sandbox_{tool_name}_")
+            temp_dir = tempfile.mkdtemp(prefix=f"guard_{tool_name}_")
             
             # Step 3: Prepare execution context
             execution_context = {
@@ -124,7 +144,7 @@ class SandboxedExecutor:
             
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
             
-            return SandboxResult(
+            return ResourceGuardResult(
                 success=result.get("success", False),
                 output=result.get("output"),
                 logs=result.get("logs", []),
@@ -136,7 +156,7 @@ class SandboxedExecutor:
             
         except Exception as e:
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            return SandboxResult(
+            return ResourceGuardResult(
                 success=False,
                 output=None,
                 logs=logs + [f"Sandbox execution failed: {str(e)}"],
@@ -150,7 +170,7 @@ class SandboxedExecutor:
         self,
         func: Callable,
         args: Dict,
-        config: SandboxConfig,
+        config: ResourceGuardConfig,
         temp_dir: str
     ) -> Dict:
         """Execute function with resource limits."""
@@ -552,10 +572,10 @@ class EmergencyKillSwitch:
 
 # Export
 __all__ = [
-    'SandboxType',
-    'SandboxConfig',
-    'SandboxResult',
-    'SandboxedExecutor',
+    'ResourceLimitType',
+    'ResourceGuardConfig',
+    'ResourceGuardResult',
+    'ResourceGuard',
     'FallbackBehavior',
     'DegradationLevel',
     'GracefulDegradation',

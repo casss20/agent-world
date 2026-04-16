@@ -310,14 +310,39 @@ class RiskClassifier:
 class FeatureFlagController:
     """
     Dynamic feature flags with per-business rollout and kill switches.
+    
+    SECURITY: Defaults to deny-all. No features enabled by default.
+    Demo configuration available via load_demo_flags() for development only.
     """
     
     def __init__(self):
         self.flags: Dict[str, Dict] = {}
-        self._load_default_flags()
+        # SECURITY: Start with deny-all, not demo config
+        self._load_deny_all_defaults()
     
-    def _load_default_flags(self):
-        """Load default feature flag configuration."""
+    def _load_deny_all_defaults(self):
+        """Load deny-all default configuration (production safe)."""
+        self.flags = {
+            # All features disabled by default
+            "auto_governor": {"enabled": False, "rollout_percentage": 0, "allowed_businesses": [], "requires_ledger_approval": True},
+            "memory_consolidation": {"enabled": False, "rollout_percentage": 0, "allowed_businesses": [], "requires_ledger_approval": True},
+            "autonomous_repair": {"enabled": False, "rollout_percentage": 0, "allowed_businesses": [], "requires_ledger_approval": True},
+            "cross_business_memory": {"enabled": False, "rollout_percentage": 0, "allowed_businesses": [], "requires_ledger_approval": True},
+            "affiliate_auto_insert": {"enabled": False, "rollout_percentage": 0, "allowed_businesses": [], "requires_ledger_approval": True},
+        }
+    
+    def load_demo_flags(self):
+        """
+        Load demonstration feature flags (NOT FOR PRODUCTION).
+        
+        This enables features for testing/development. Call this explicitly
+        in development environments only.
+        """
+        import warnings
+        warnings.warn(
+            "Demo flags loaded - NOT FOR PRODUCTION USE",
+            RuntimeWarning
+        )
         self.flags = {
             "auto_governor": {
                 "enabled": True,
