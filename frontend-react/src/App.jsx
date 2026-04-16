@@ -11,6 +11,9 @@ import { AuditLogViewer } from './components/audit/AuditLogViewer'
 import { ApprovalGate } from './components/governance/ApprovalGate'
 import ChannelsPage from './pages/ChannelsPage'
 import AgentTemplatesPage from './pages/AgentTemplatesPage'
+import { BusinessIntakeWizard } from './pages/BusinessIntakeWizard'
+import { DiagnosticReport } from './pages/DiagnosticReport'
+import { StrategyRecommendation } from './pages/StrategyRecommendation'
 
 // Business Workspace Wrapper
 function BusinessRoute({ businessId }) {
@@ -29,6 +32,9 @@ function App() {
           <Routes>
             <Route path="/"             element={<GlobalHQ />} />
             <Route path="/hq"           element={<GlobalHQ />} />
+            <Route path="/intake"        element={<BusinessIntakeWizard />} />
+            <Route path="/diagnosis/:diagnosisId" element={<DiagnosticReport />} />
+            <Route path="/diagnostics/:diagnosisId/strategy" element={<StrategyRecommendation />} />
             <Route path="/spawn"        element={<SpawnPage />} />
             <Route path="/audit"        element={<AuditLogViewer />} />
             <Route path="/approvals"    element={<ApprovalGate />} />

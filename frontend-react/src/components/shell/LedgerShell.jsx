@@ -87,6 +87,7 @@ export function LedgerShell({ children }) {
         <aside className="w-64 bg-gray-900 border-r border-gray-800">
           <nav className="p-4 space-y-1">
             <NavItem href="/hq"       icon="📊" label="Global HQ" />
+            <NavItem href="/intake"    icon="🎯" label="New Diagnosis" />
             <NavItem href="/spawn"    icon="⚡" label="Spawn Agents" />
             <div className="pt-4 pb-2">
               <p className="text-xs font-medium text-gray-500 uppercase px-3">Businesses</p>

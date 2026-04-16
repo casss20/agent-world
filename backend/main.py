@@ -27,6 +27,7 @@ from retry_controller import router as dlq_router
 from lifecycle_manager import lifecycle_router
 from spawn_routes import router as spawn_router, on_startup as spawn_on_startup
 from channel_routes import router as channel_router
+from diagnostic_routes import router as diagnostic_router
 from agent_templates import seed_agent_templates
 from channel_registry import get_channel_registry
 from ledger_router import get_ledger_router
@@ -117,6 +118,7 @@ async def shutdown_event():
 # Include additional routers
 app.include_router(spawn_router)          # spawn / agent pipeline
 app.include_router(channel_router)        # channels, routing, agent templates
+app.include_router(diagnostic_router)     # business diagnostics & strategy
 app.include_router(chatdev_router)
 app.include_router(ledger_router)
 app.include_router(governance_v2_router)
