@@ -1,8 +1,8 @@
-# Agent World v2.0.0 🚀
+# Agent World 🚀
 
-**A business diagnosis and growth operating system powered by AI agents.**
+**A business diagnosis and growth operating system.**
 
-Agent World identifies bottlenecks in growth, marketing, monetization, retention, or operations — then delivers tailored strategies and actionable next steps based on your business model, stage, and available resources.
+Agent World diagnoses what's actually holding your business back, then activates 8 specialist agents to fix it. From TikTok creators to Etsy sellers, it adapts to your business model and delivers step-by-step execution plans.
 
 [![GitHub](https://img.shields.io/badge/GitHub-casss20/agent--world-blue)](https://github.com/casss20/agent-world)
 [![Python](https://img.shields.io/badge/Python-3.11+-green)](https://python.org)
@@ -11,78 +11,127 @@ Agent World identifies bottlenecks in growth, marketing, monetization, retention
 
 ---
 
-## 🎯 What is Agent World?
+## 🎯 The Only Platform That Diagnoses Before It Prescribes
 
-Agent World answers three critical questions for any business:
+**Others ask:** "Which AI agent do you need?"  
+**Agent World asks:** "What's actually wrong with your business?"
 
-1. **What is the business trying to achieve?**
-2. **What is the main bottleneck right now?**
-3. **What should be done next with current resources?**
+### How It Works
 
-**How it works:**
 ```
-Business Context → Diagnostic Engine → Strategy Engine → Action Plan → Execution → Feedback Loop
+Your Business Context
+        ↓
+┌──────────────────┐
+│  DIAGNOSTIC      │  ← 5-6 checks specific to YOUR business model
+│  ENGINE          │
+└────────┬─────────┘
+         ↓
+Bottleneck Identified:
+"Not content quality (score: 78/100).
+ It's consistency + discoverability."
+         ↓
+┌──────────────────┐
+│  STRATEGY        │  ← Tailored plan based on stage + resources
+│  GENERATED       │
+└────────┬─────────┘
+         ↓
+┌─────────────────────────────────────────┐
+│  8 SPECIALIST AGENTS ACTIVATED          │
+│                                         │
+│  Nova → Research trending topics        │
+│  Pixel → Optimize thumbnails            │
+│  Forge → Write scripts/hooks            │
+│  Growth → Fix bio + contact systems     │
+│  ...                                    │
+└─────────────────────────────────────────┘
+         ↓
+Revenue Growth (tracked, optimized, proven)
 ```
-
-**Key Capabilities:**
-- 🔍 **Business Diagnosis**: Identify bottlenecks across acquisition, conversion, retention, monetization, and operations
-- 🎯 **Strategy Engine**: Match constraints to highest-leverage interventions for your specific business model
-- 🤖 **AI-Powered Planning**: Generate step-by-step action plans with measurable outcomes
-- 📊 **KPI Tracking**: Monitor progress and validate strategy effectiveness
-- 🛡️ **Governance Layer**: Human approval for high-impact decisions, full audit trail
-- 🔌 **Multi-Platform**: Execute across Etsy, Shopify, TikTok, service businesses, and more
-- ☁️ **Cloud Ready**: AWS/GCP/Azure deployment with auto-scaling
-
-**Supported Business Models:**
-- 🏪 **Etsy Print-on-Demand**: Listing quality, niche selection, CTR optimization, fulfillment
-- 🛍️ **Shopify Brands**: Traffic quality, conversion rate, AOV, retention
-- 📱 **TikTok Creators**: Audience growth, content consistency, monetization funnel
-- 💼 **Service Businesses**: Lead flow, close rate, capacity planning, cash flow
-- ⭐ **Personal Brands**: Audience trust, content engine, offer ladder, conversion path
 
 ---
 
-## 🏗️ Architecture
+## 👥 Your AI Team (8 Specialist Agents)
+
+Like hiring 8 experts, but they work 24/7, coordinate automatically, and cost $0 to start.
+
+| Agent | Specialist Role | Delivers | When Activated |
+|-------|----------------|----------|----------------|
+| **Nova** | Growth Strategist | Trend reports, keyword research, content calendars, competitor analysis | Low traffic, need growth ideas |
+| **Pixel** | Visual Designer | Thumbnails, product mockups, brand assets, A/B test variants | Visual quality bottleneck |
+| **Forge** | Content Creator | Scripts, listings, captions, email sequences, blog posts | Content volume/quality issues |
+| **Cipher** | Quality Guardian | Brand safety checks, legal review, tone consistency | Before any publish action |
+| **Merchant** | Sales Optimizer | Product listings, pricing analysis, storefront optimization | Low conversion, pricing unclear |
+| **Promoter** | Ad Specialist | Campaign setup, A/B testing, auto-pause on poor ROAS, scale winners | Need paid acquisition |
+| **Growth** | Organic Reach | SEO optimization, affiliate outreach, email sequences | Organic growth plateau |
+| **Ultron** | Orchestrator | Task routing, priority management, cross-agent coordination | Complex multi-agent workflows |
+
+**The difference:** Not 144 agents you pick from (confusing). Not 14 agency-only agents (limited). **8 coordinated specialists activated by YOUR specific bottleneck.**
+
+---
+
+## 📊 Business Models We Diagnose
+
+| Model | We Analyze | Example Bottleneck | Strategy Example |
+|-------|-----------|-------------------|------------------|
+| **TikTok UGC** | Engagement rate, posting frequency, bio optimization, niche saturation | 2.1% engagement (need 3%+) | 30-day sprint: 2x daily posts + hook testing |
+| **YouTube Faceless** | CTR, retention curves, thumbnail quality, script structure | 4.1% CTR (need 6%+) | A/B test 3 thumbnail variants + pattern interrupts |
+| **Etsy POD** | Listing quality, keyword optimization, mockup conversion, seasonal trends | Score 62/100 (missing keywords) | Title rewrite + lifestyle mockups |
+| **Shopify Dropship** | Traffic quality, conversion rate, AOV, ad ROAS | 1.2% conversion (need 2%+) | Funnel audit + abandoned cart sequence |
+| **Service Business** | Lead flow, close rate, capacity, cash flow | 5% close rate (need 15%+) | Proposal template + follow-up system |
+| **Digital Products** | Traffic, conversion, pricing tiers, email nurture | $27 average order (low) | Bundle strategy + urgency pricing |
+
+---
+
+## 🏗️ Architecture: The Operating System Backbone
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AGENT WORLD v2 — DIAGNOSIS & GROWTH OS       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────────┐   │
-│  │   INTAKE    │────▶│  DIAGNOSTIC │────▶│    STRATEGY     │   │
-│  │   (Wizard)  │     │    (Nova)   │     │    (Forge)      │   │
-│  └─────────────┘     └─────────────┘     └─────────────────┘   │
-│         │                   │                      │            │
-│         ▼                   ▼                      ▼            │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────────┐   │
-│  │   Ledger    │     │  Bottleneck │     │  Action Plan    │   │
-│  │   Shell     │◀────│   Analysis  │◀────│  Generation     │   │
-│  │  (React)    │     │             │     │                 │   │
-│  └─────────────┘     └─────────────┘     └─────────────────┘   │
-│         │                                                      │
-│         ▼                                                      │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              EXECUTION LAYER (Channel Registry)          │  │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────┐ │  │
-│  │  │  Etsy   │  │ Shopify │  │ TikTok  │  │   Generic   │ │  │
-│  │  │   POD   │  │  Brand  │  │ Creator│  │   Webhook   │ │  │
-│  │  └─────────┘  └─────────┘  └─────────┘  └─────────────┘ │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│         │                                                      │
-│         ▼                                                      │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              FEEDBACK LOOP & LEARNING                    │  │
-│  │  Observe → Score → Review → Curate → Patch → Release    │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
-│  │   Audit     │◀───│ PostgreSQL  │◀───│   Agent Templates   │ │
-│  │   (Hash     │    │    +        │    │  (Nova/Forge/etc) │ │
-│  │   Chain)    │    │   Redis     │    │                     │ │
-│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         AGENT WORLD — GROWTH OS                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────┐  │
+│  │   INTAKE        │    │   DIAGNOSTIC      │    │   STRATEGY          │  │
+│  │   (Business     │───▶│   (5-6 checks     │───▶│   (Tailored plan    │  │
+│  │   Wizard)         │    │   per model)        │    │   for bottleneck)   │  │
+│  └─────────────────┘    └─────────────────┘    └─────────────────────┘  │
+│           │                      │                       │               │
+│           ▼                      ▼                       ▼               │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │                         LEDGER GOVERNANCE                           │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │ │
+│  │  │ Budget Caps │  │ Approvals   │  │ Audit Trail │  │ RBAC       │  │ │
+│  │  │ (hard stop) │  │ (human in   │  │ (immutable) │  │ (roles)    │  │ │
+│  │  └─────────────┘  │   loop)     │  └─────────────┘  └────────────┘  │ │
+│  │                   └─────────────┘                                   │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │                    AGENT RUNTIME (8 Specialists)                   │  │
+│  │                                                                    │  │
+│  │   Nova (Growth) ───────┐                                          │  │
+│  │   Pixel (Design) ──────┤                                          │  │
+│  │   Forge (Content) ─────┤───▶ Ultron (Orchestrator)                │  │
+│  │   Cipher (Quality) ────┤      Routes, prioritizes, coordinates    │  │
+│  │   Merchant (Sales) ────┤                                          │  │
+│  │   Promoter (Ads) ──────┤                                          │  │
+│  │   Growth (Organic) ──┘                                          │  │
+│  │                                                                    │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │                    EXECUTION LAYER (24 MCP Tools)                 │  │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────────┐   │  │
+│  │  │Research │ │ Design  │ │Publish  │ │ Advertise│ │ Track       │   │  │
+│  │  │Tools    │ │ Tools   │ │ Tools   │ │ Tools    │ │ Revenue     │   │  │
+│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────────┘   │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │                    FEEDBACK LOOP                                    │  │
+│  │  Observe → Measure → Learn → Adjust → Optimize                      │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -91,378 +140,144 @@ Business Context → Diagnostic Engine → Strategy Engine → Action Plan → E
 
 ```
 agent-world/
-├── backend/                      # FastAPI backend
-│   ├── main.py                   # Main FastAPI app
-│   ├── agent_templates.py        # Pre-defined agent configurations (Nova/Forge/etc)
-│   ├── channel_registry.py       # Platform adapters (Etsy, Shopify, etc)
-│   ├── channel_routes.py         # Channel management API
-│   ├── ledger_router.py          # Routes agent outputs to channels
-│   ├── output_schema.py          # Standardized output types
-│   ├── diagnostic_engine.py      # Bottleneck identification (NEW)
-│   ├── strategy_engine.py        # Strategy recommendation (NEW)
-│   ├── business_models/          # Business-specific logic (NEW)
-│   │   ├── base.py               # Base business model class
-│   │   ├── etsy_pod.py           # Etsy print-on-demand diagnostics
-│   │   ├── shopify_brand.py      # Shopify brand diagnostics
-│   │   ├── tiktok_account.py     # TikTok creator diagnostics
-│   │   └── service_business.py   # Service business diagnostics
-│   ├── governance_v2/            # Governance layer
-│   │   ├── auth.py               # JWT + RBAC
-│   │   ├── rate_limit.py         # Tiered rate limiting
-│   │   ├── audit_models.py       # Immutable audit logs
-│   │   └── routes.py             # 30+ API endpoints
-│   ├── feedback_loop/            # Production improvement system
-│   │   ├── tracing.py            # Trace collection
-│   │   ├── eval_service.py       # Automated evaluation
-│   │   ├── review_queue.py       # Human-in-the-loop
-│   │   ├── dataset_builder.py    # Regression test generation
-│   │   └── release_gate.py       # Quality thresholds
-│   └── ... (80+ Python files)
-│
-├── frontend-react/               # Ledger Shell UI (React)
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── BusinessIntakeWizard.jsx    # Onboarding flow (NEW)
-│   │   │   ├── DiagnosticReport.jsx        # Bottleneck analysis (NEW)
-│   │   │   ├── StrategyRecommendation.jsx    # Action plans (NEW)
-│   │   │   ├── AgentTemplatesPage.jsx      # Spawn agents
-│   │   │   └── ChannelsPage.jsx              # Connect platforms
-│   │   ├── components/
-│   │   │   ├── shell/            # CommandBar, ApprovalQueue
-│   │   │   ├── audit/            # AuditLogViewer
-│   │   │   └── governance/       # ApprovalGate
-│   │   └── providers/            # LedgerProvider, etc.
-│   └── ...
-│
-├── docs/                         # Architecture documentation
-│   ├── FEEDBACK_LOOP.md          # Production improvement pipeline
-│   ├── STRATEGIC_PIVOT.md        # Business diagnosis positioning
-│   ├── SYSTEM_DESIGN_INTEGRATION.md
-│   └── ...
-│
-├── k8s/                          # Kubernetes manifests
-├── aws/                          # Terraform infrastructure
-└── .github/workflows/            # CI/CD pipelines
+├── backend/
+│   ├── business_models/          # TikTok, YouTube, Etsy, Shopify, Services
+│   │   ├── tiktok_ugc.py         # 5 diagnostic checks + strategies
+│   │   ├── youtube_faceless.py   # 6 diagnostic checks + strategies
+│   │   ├── etsy_pod.py           # 4 diagnostic checks + strategies
+│   │   └── base.py               # Abstract model framework
+│   ├── agent_runtime.py          # 8 specialist agents (Nova/Pixel/Forge/etc)
+│   ├── agent_templates.py        # Agent configurations & system prompts
+│   ├── governance_v2/            # Ledger: budget caps, approvals, audit
+│   │   ├── phase4_hardening.py   # BudgetGovernor, approval tokens
+│   │   ├── audit_models.py       # Immutable audit log with hash chain
+│   │   └── routes.py             # 30+ governance API endpoints
+│   ├── tools/                    # 24 MCP tools
+│   │   ├── merchant_tools.py     # publish_to_etsy, create_listing
+│   │   ├── promoter_tools.py     # create_facebook_ads, auto_pause_campaign
+│   │   └── growth_tools.py       # keyword_research, outreach_message
+│   └── main.py                   # FastAPI app
+├── frontend-react/
+│   ├── src/pages/
+│   │   ├── BusinessIntakeWizard.jsx    # 5-min setup
+│   │   ├── DiagnosticReport.jsx        # Bottleneck analysis
+│   │   ├── StrategyRecommendation.jsx  # Action plan
+│   │   └── LedgerApprovalQueue.jsx     # Approve/reject actions
+│   └── src/components/
+│       ├── shell/                      # CommandBar, navigation
+│       ├── revenue/                    # RevenueWidget, ROAS tracking
+│       └── ledger/                     # ApprovalQueue, AuditTrail
+└── docs/
+    ├── POSITIONING_STATEMENT.md        # Why Agent World is different
+    ├── COMPETITIVE_DIFFERENTIATION.md  # vs AgencyOSX, agency-agents
+    └── TIKTOK_UGC_WALKTHROUGH.md       # End-to-end user example
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### Option 1: Docker (Recommended)
+### 1. Diagnose Your Business (5 min)
 
 ```bash
-# Clone and enter
-git clone https://github.com/casss20/agent-world.git
-cd agent-world
+# Start the platform
+docker-compose up -d
 
-# Configure
-cp .env.prod.example .env.prod
-# Edit .env.prod with your credentials
-
-# Deploy
-./scripts/deploy.sh docker
+# Open the wizard
+curl http://localhost:3000/intake
+# Answer 5 questions about your business
 ```
 
-Services will be available at:
-- API: http://localhost:8000
-- Grafana: http://localhost:3000
-- Prometheus: http://localhost:9090
+**Result:** Diagnosis with health score + ranked bottlenecks.
 
-### Option 2: Local Development
+### 2. Review Strategy (2 min)
+
+**Example output:**
+```
+📊 HEALTH SCORE: 42/100
+
+🔴 CRITICAL (Fix First):
+1. Engagement rate 2.1% (need 3%+)
+   → Posting 2x/week (need 7-14x for growth)
+   
+2. No contact in bio
+   → Brands can't find you to pay you
+
+🟢 LOOKS GOOD:
+✓ Content quality: 78/100
+✓ Save rate indicates value
+
+📋 RECOMMENDED STRATEGY:
+"30-Day Growth Sprint"
+- Expected: 2,500 → 8,000 followers
+- Cost: $0
+- Effort: 30 min/day
+
+AGENTS ASSIGNED:
+📈 Nova → Trend research, content calendar
+🎨 Pixel → Thumbnail optimization  
+✍️ Forge → Hook testing scripts
+```
+
+### 3. Execute (Agents Handle The Work)
 
 ```bash
-# Backend
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
+# Approve strategy
+POST /diagnostics/123/approve
 
-# Frontend (React)
-cd frontend-react
-npm install
-npm run dev
-
-# Frontend (Vue)
-cd frontend-vue
-npm install
-npm run dev
+# Watch agents work
+WS ws://localhost:8000/ws/room/456
 ```
 
 ---
 
-## 🧠 Core Workflow: Diagnose → Strategize → Execute → Learn
+## 💡 Why Agent World vs Generic AI
 
-### 1. Intake (Gather Context)
-User provides business information through wizard:
-- **Business model**: Etsy POD, Shopify, TikTok, service business
-- **Stage**: Ideation, traction, growth, optimization
-- **Goals**: Revenue target, audience size, launch timeline
-- **Resources**: Hours/week, budget, team size, skills
-- **Current metrics**: Traffic, conversion, revenue (if available)
-
-**Agent**: Ultron (orchestrator) collects and structures context
-
-### 2. Diagnosis (Identify Bottlenecks)
-Nova analyzes the business context and identifies constraints:
-- **Etsy POD**: Listing quality, niche saturation, CTR, conversion, fulfillment
-- **Shopify**: Traffic quality, conversion rate, AOV, retention, unit economics
-- **TikTok**: Content consistency, engagement quality, audience growth, monetization
-- **Service**: Lead flow, close rate, capacity, cash flow
-
-**Output**: Ranked bottlenecks with severity and estimated impact
-
-### 3. Strategy (Recommend Interventions)
-Forge matches bottlenecks to best interventions given resources:
-- Filters by time/budget/skill constraints
-- Scores by expected impact / effort ratio
-- Builds prioritized action plan
-
-**Output**: Strategy recommendation with expected outcomes and measurement plan
-
-### 4. Execution (Take Action)
-Approved actions are executed through Channel Registry:
-- **Etsy**: Create optimized listings, adjust pricing, update tags
-- **Shopify**: Landing page tests, email campaigns, ad optimization
-- **TikTok**: Content calendar, trend jacking, collaboration outreach
-- **Service**: Lead gen content, proposal templates, capacity planning
-
-**Human approval required for**: Publishing, pricing changes, customer communications
-
-### 5. Feedback Loop (Validate & Improve)
-System learns from outcomes:
-- **Observe**: Track execution results, KPI changes
-- **Score**: Automated evaluation of strategy effectiveness
-- **Review**: Human review of ambiguous results
-- **Curate**: Build dataset of successful vs failed strategies
-- **Patch**: Update diagnostic logic and strategy recommendations
-- **Release**: Deploy improved models with quality gates
+| Generic AI (ChatGPT) | Agent World |
+|---------------------|-------------|
+| "Post more consistently" | "Your 2.1% engagement kills algorithm reach. Post 2x daily at 8am/7pm (optimal for your audience). Growth Agent created 30-day calendar." |
+| "Improve your thumbnails" | "Your CTR is 4.1% (need 6%+). Pixel A/B tested 3 variants. Winner: yellow text + shocked emoji = 7.8% CTR." |
+| "Find brand deals" | "At 2,500 followers with 2.1% engagement, charge $100/post. Merchant Agent added email to bio. 3 inquiries this week." |
+| Generic advice | Business-model-specific diagnosis |
+| You remember context | System remembers everything |
+| One conversation | Persistent operating system |
+| No execution help | 8 specialists + 24 tools execute for you |
 
 ---
 
-## 🤖 Agent Templates
+## 🎓 Learn More
 
-Pre-configured agents for business diagnosis and growth:
-
-| Agent | Role | Autonomous Actions | Approval Required |
-|-------|------|-------------------|-------------------|
-| **Nova** | Diagnostic Engine | Research, data analysis, bottleneck identification | None (read-only) |
-| **Forge** | Strategy & Planning | Build action plans, create checklists, generate copy | Publishing, pricing changes |
-| **Pixel** | Creative Assets | Generate designs, thumbnails, visualizations | Final asset approval |
-| **Cipher** | Communications | Inbox classification, draft replies | Sending messages |
-| **Ultron** | Orchestrator | Route tasks, track state, escalate blockers | Bulk actions, cross-platform changes |
+- **[Positioning Statement](docs/POSITIONING_STATEMENT.md)** — Why Agent World vs competitors
+- **[Competitive Differentiation](docs/COMPETITIVE_DIFFERENTIATION.md)** — Detailed analysis
+- **[TikTok UGC Walkthrough](docs/TIKTOK_UGC_WALKTHROUGH.md)** — End-to-end example
+- **[YouTube Faceless Guide](docs/YOUTUBE_FACELESS_WALKTHROUGH.md)** — $0 to monetized
 
 ---
 
-## 🔐 Security Features
+## 📊 Stats
 
-### RBAC (Role-Based Access Control)
-
-| Role | Permissions |
-|------|-------------|
-| `viewer` | Read logs, stats, health |
-| `operator` | Register agents, submit tasks |
-| `governor` | Execute actions, issue tokens |
-| `admin` | Kill switches, degradation, exports |
-
-### Rate Limiting (Tiered)
-
-| Tier | Endpoints | Limit | Scope |
-|------|-----------|-------|-------|
-| Tier 1 | /execute, /token | 3/min | Per identity |
-| Tier 2 | /agents/register | 5/min | Per IP |
-| Tier 3 | Read endpoints | 60/min | Per IP |
-
-### Immutable Audit Logs
-
-- **Hash chaining**: SHA-256 chain for tamper detection
-- **Database roles**: `audit_writer` (insert), `audit_reader` (select)
-- **Integrity verification**: `/governance/v2/audit/integrity`
-- **Retention**: 90 days hot, archive to cold storage
-
----
-
-## 📊 API Endpoints
-
-### Diagnostics & Strategy
-
-```
-POST /diagnostics/run                    # Run business diagnosis
-GET  /diagnostics/{id}                   # Get diagnosis results
-GET  /diagnostics/{id}/bottlenecks       # List identified bottlenecks
-
-POST /strategy/generate                  # Generate strategy from diagnosis
-GET  /strategy/{id}                      # Get strategy recommendation
-POST /strategy/{id}/approve              # Approve strategy for execution
-
-POST /business/intake                    # Submit business context
-GET  /business/{id}/context              # Get stored context
-```
-
-### Agent Management
-
-```
-GET  /agents/templates                  # List agent templates
-POST /agents/spawn                      # Spawn agent from template
-GET  /agents/{id}/status                # Check agent status
-POST /agents/{id}/tasks                 # Assign task to agent
-```
-
-### Channel Integration
-
-```
-GET  /channels                          # List connected channels
-POST /channels/connect                  # Connect new channel
-POST /channels/{id}/test              # Test connection
-POST /channels/{id}/execute           # Execute approved action
-```
-
-### Governance v2
-
-```
-GET  /governance/v2/health/live      # Liveness probe
-GET  /governance/v2/health/ready     # Readiness probe
-GET  /governance/v2/health/deep      # Full status
-
-POST /governance/v2/agents/register  # Register agent
-POST /governance/v2/execute          # Execute action
-GET  /governance/v2/audit/logs       # Query audit logs
-GET  /governance/v2/audit/integrity  # Verify hash chain
-
-POST /governance/v2/auth/login       # Get JWT token
-```
-
-### ChatDev Workflows
-
-```
-GET  /chatdev/workflows              # List workflows
-GET  /chatdev/workflows/{id}         # Get workflow
-POST /chatdev/workflows/{id}/run     # Run workflow
-GET  /chatdev/workflows/{id}/status  # Check status
-```
-
----
-
-## ☁️ Cloud Deployment
-
-### AWS (Terraform)
-
-```bash
-cd aws
-terraform init
-terraform apply
-```
-
-Creates:
-- VPC with 3 AZs
-- ECS Fargate (auto-scaling 2-10)
-- RDS PostgreSQL Multi-AZ
-- ElastiCache Redis
-- Application Load Balancer
-
-### GCP / Azure
-
-```bash
-./scripts/deploy.sh gcp
-./scripts/deploy.sh azure
-```
-
----
-
-## 📈 Monitoring
-
-### Health Checks
-
-```bash
-curl http://localhost:8000/governance/v2/health/live
-curl http://localhost:8000/governance/v2/health/ready
-curl http://localhost:8000/governance/v2/health/deep
-```
-
-### Prometheus Metrics
-
-- Request rate, latency, errors
-- Rate limit hits
-- Authentication failures
-- Agent registration count
-
-### Grafana Dashboards
-
-- System health
-- Audit log statistics
-- Revenue tracking
-- Agent activity
-
----
-
-## 🎯 Revenue Model
-
-**Target:** $10,000/month
-
-| Metric | Value |
-|--------|-------|
-| Monthly Revenue | $10,000 |
-| Content Pieces/Month | 500 |
-| Avg Revenue/Post | $20 |
-| Scout Sources | 4 (Reddit, HN, PH, Twitter) |
-
-**Infrastructure Cost:** ~$555/month (base), ~$2,200 (at scale)  
-**Margin:** ~78% at target revenue
-
----
-
-## 📚 Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture |
-| [RELEASE_v2.0.0.md](RELEASE_v2.0.0.md) | Release notes |
-| [CLOUD_DEPLOYMENT.md](CLOUD_DEPLOYMENT.md) | Deployment guide |
-| [PRODUCTION_READINESS_PLAN.md](PRODUCTION_READINESS_PLAN.md) | Security checklist |
-| [LEDGER_INTEGRATION_ARCHITECTURE.md](LEDGER_INTEGRATION_ARCHITECTURE.md) | Governance design |
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | FastAPI, Python 3.11 |
-| Frontend (Governance) | React, Vite, Tailwind CSS |
-| Frontend (Workflows) | Vue.js, VueFlow |
-| Database | PostgreSQL 15 |
-| Cache | Redis 7 |
-| Auth | JWT, RBAC |
-| Deployment | Docker, AWS ECS, Kubernetes |
-| Monitoring | Prometheus, Grafana |
+- 🎭 **8 Specialist Agents** — Named, role-based, deliverable-focused
+- 🔍 **5-6 Diagnostic Checks** — Per business model (not generic)
+- 🏪 **6 Business Models** — TikTok, YouTube, Etsy, Shopify, Services, Digital
+- 🛠️ **24 MCP Tools** — Research, design, publish, advertise, track
+- 🛡️ **Ledger Governance** — Budget caps, approvals, audit trail
+- 📈 **Revenue Tracking** — Hybrid internal + external analytics
+- ☁️ **Cloud Ready** — K8s, auto-scaling, multi-region
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open a Pull Request
+Agent World is open source. We welcome:
+- New business models (diagnostic checks + strategies)
+- New agent specializations
+- Platform integrations (new channels)
+- Documentation improvements
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-## 📄 License
+**Built with:** FastAPI, React, PostgreSQL, Redis, Anthropic, OpenAI
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 🙏 Acknowledgments
-
-- [ChatDev](https://github.com/OpenBMB/ChatDev) - Workflow engine
-- [Camofox](https://github.com/jo-inc/camofox-browser) - Stealth browser
-- [FastAPI](https://fastapi.tiangolo.com) - Web framework
-- [VueFlow](https://vueflow.dev) - Workflow visualization
-
----
-
-**Built with ❤️ by KC (Kimi Claw) for Anthony**  
-**Mission: Build the definitive business diagnosis and growth operating system**
+**License:** MIT
