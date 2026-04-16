@@ -1,8 +1,8 @@
 # Agent World v2.0.0 🚀
 
-**A production-ready multi-agent "money room" platform for automated content arbitrage.**
+**A business diagnosis and growth operating system powered by AI agents.**
 
-Built with FastAPI, React, Vue.js, and integrated with ChatDev Money for workflow orchestration.
+Agent World identifies bottlenecks in growth, marketing, monetization, retention, or operations — then delivers tailored strategies and actionable next steps based on your business model, stage, and available resources.
 
 [![GitHub](https://img.shields.io/badge/GitHub-casss20/agent--world-blue)](https://github.com/casss20/agent-world)
 [![Python](https://img.shields.io/badge/Python-3.11+-green)](https://python.org)
@@ -13,18 +13,32 @@ Built with FastAPI, React, Vue.js, and integrated with ChatDev Money for workflo
 
 ## 🎯 What is Agent World?
 
-Agent World is a **governed multi-agent platform** that automates content arbitrage:
+Agent World answers three critical questions for any business:
 
+1. **What is the business trying to achieve?**
+2. **What is the main bottleneck right now?**
+3. **What should be done next with current resources?**
+
+**How it works:**
 ```
-Reddit/HN/PH/Twitter → Scout Agent → Maker Agent → Merchant Agent → Revenue
+Business Context → Diagnostic Engine → Strategy Engine → Action Plan → Execution → Feedback Loop
 ```
 
 **Key Capabilities:**
-- 🔍 **Trend Discovery**: Multi-source scouting (Reddit, Hacker News, Product Hunt, Twitter)
-- 🤖 **AI Content Creation**: Automated content generation with human oversight
-- 📊 **Revenue Tracking**: End-to-end monetization pipeline
-- 🛡️ **Governance Layer**: RBAC, rate limiting, immutable audit logs
+- 🔍 **Business Diagnosis**: Identify bottlenecks across acquisition, conversion, retention, monetization, and operations
+- 🎯 **Strategy Engine**: Match constraints to highest-leverage interventions for your specific business model
+- 🤖 **AI-Powered Planning**: Generate step-by-step action plans with measurable outcomes
+- 📊 **KPI Tracking**: Monitor progress and validate strategy effectiveness
+- 🛡️ **Governance Layer**: Human approval for high-impact decisions, full audit trail
+- 🔌 **Multi-Platform**: Execute across Etsy, Shopify, TikTok, service businesses, and more
 - ☁️ **Cloud Ready**: AWS/GCP/Azure deployment with auto-scaling
+
+**Supported Business Models:**
+- 🏪 **Etsy Print-on-Demand**: Listing quality, niche selection, CTR optimization, fulfillment
+- 🛍️ **Shopify Brands**: Traffic quality, conversion rate, AOV, retention
+- 📱 **TikTok Creators**: Audience growth, content consistency, monetization funnel
+- 💼 **Service Businesses**: Lead flow, close rate, capacity planning, cash flow
+- ⭐ **Personal Brands**: Audience trust, content engine, offer ladder, conversion path
 
 ---
 
@@ -32,19 +46,42 @@ Reddit/HN/PH/Twitter → Scout Agent → Maker Agent → Merchant Agent → Reve
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        AGENT WORLD v2                           │
+│                    AGENT WORLD v2 — DIAGNOSIS & GROWTH OS       │
 ├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │   Ledger    │───▶│ Governance  │───▶│   Agents    │         │
-│  │   Shell     │    │     v2      │    │  (Scout/    │         │
-│  │  (React)    │    │  (FastAPI)  │    │ Maker/etc)  │         │
-│  └─────────────┘    └──────┬──────┘    └─────────────┘         │
-│                            │                                    │
-│  ┌─────────────┐    ┌─────┴──────┐    ┌─────────────┐         │
-│  │   Audit     │◀───│ PostgreSQL │───▶│   ChatDev   │         │
-│  │   (Hash     │    │    +       │    │   Money     │         │
-│  │   Chain)    │    │   Redis    │    │  (Workflow) │         │
-│  └─────────────┘    └────────────┘    └─────────────┘         │
+│                                                                 │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────────┐   │
+│  │   INTAKE    │────▶│  DIAGNOSTIC │────▶│    STRATEGY     │   │
+│  │   (Wizard)  │     │    (Nova)   │     │    (Forge)      │   │
+│  └─────────────┘     └─────────────┘     └─────────────────┘   │
+│         │                   │                      │            │
+│         ▼                   ▼                      ▼            │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────────┐   │
+│  │   Ledger    │     │  Bottleneck │     │  Action Plan    │   │
+│  │   Shell     │◀────│   Analysis  │◀────│  Generation     │   │
+│  │  (React)    │     │             │     │                 │   │
+│  └─────────────┘     └─────────────┘     └─────────────────┘   │
+│         │                                                      │
+│         ▼                                                      │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │              EXECUTION LAYER (Channel Registry)          │  │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────┐ │  │
+│  │  │  Etsy   │  │ Shopify │  │ TikTok  │  │   Generic   │ │  │
+│  │  │   POD   │  │  Brand  │  │ Creator│  │   Webhook   │ │  │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────────┘ │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│         │                                                      │
+│         ▼                                                      │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │              FEEDBACK LOOP & LEARNING                    │  │
+│  │  Observe → Score → Review → Curate → Patch → Release    │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
+│  │   Audit     │◀───│ PostgreSQL  │◀───│   Agent Templates   │ │
+│  │   (Hash     │    │    +        │    │  (Nova/Forge/etc) │ │
+│  │   Chain)    │    │   Redis     │    │                     │ │
+│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,27 +93,40 @@ Reddit/HN/PH/Twitter → Scout Agent → Maker Agent → Merchant Agent → Reve
 agent-world/
 ├── backend/                      # FastAPI backend
 │   ├── main.py                   # Main FastAPI app
-│   ├── main_v2.py                # Enhanced v2 app
-│   ├── ledger_sovereign.py       # Governance engine
-│   ├── chatdev_client.py         # ChatDev integration
-│   ├── camofox_client.py         # Stealth browser client
-│   ├── multica_client.py         # Multica integration
+│   ├── agent_templates.py        # Pre-defined agent configurations (Nova/Forge/etc)
+│   ├── channel_registry.py       # Platform adapters (Etsy, Shopify, etc)
+│   ├── channel_routes.py         # Channel management API
+│   ├── ledger_router.py          # Routes agent outputs to channels
+│   ├── output_schema.py          # Standardized output types
+│   ├── diagnostic_engine.py      # Bottleneck identification (NEW)
+│   ├── strategy_engine.py        # Strategy recommendation (NEW)
+│   ├── business_models/          # Business-specific logic (NEW)
+│   │   ├── base.py               # Base business model class
+│   │   ├── etsy_pod.py           # Etsy print-on-demand diagnostics
+│   │   ├── shopify_brand.py      # Shopify brand diagnostics
+│   │   ├── tiktok_account.py     # TikTok creator diagnostics
+│   │   └── service_business.py   # Service business diagnostics
 │   ├── governance_v2/            # Governance layer
 │   │   ├── auth.py               # JWT + RBAC
 │   │   ├── rate_limit.py         # Tiered rate limiting
-│   │   ├── health.py             # K8s health probes
 │   │   ├── audit_models.py       # Immutable audit logs
-│   │   ├── audit_service.py      # Audit database service
-│   │   ├── audit_routes.py       # Audit API endpoints
-│   │   ├── phase1_core.py        # Capability issuer
-│   │   ├── phase2_orchestration.py # Agent registry
-│   │   ├── phase3_memory.py      # Event stream
-│   │   ├── phase4_hardening.py   # Sandboxed executor
 │   │   └── routes.py             # 30+ API endpoints
-│   └── ... (65 Python files)
+│   ├── feedback_loop/            # Production improvement system
+│   │   ├── tracing.py            # Trace collection
+│   │   ├── eval_service.py       # Automated evaluation
+│   │   ├── review_queue.py       # Human-in-the-loop
+│   │   ├── dataset_builder.py    # Regression test generation
+│   │   └── release_gate.py       # Quality thresholds
+│   └── ... (80+ Python files)
 │
 ├── frontend-react/               # Ledger Shell UI (React)
 │   ├── src/
+│   │   ├── pages/
+│   │   │   ├── BusinessIntakeWizard.jsx    # Onboarding flow (NEW)
+│   │   │   ├── DiagnosticReport.jsx        # Bottleneck analysis (NEW)
+│   │   │   ├── StrategyRecommendation.jsx    # Action plans (NEW)
+│   │   │   ├── AgentTemplatesPage.jsx      # Spawn agents
+│   │   │   └── ChannelsPage.jsx              # Connect platforms
 │   │   ├── components/
 │   │   │   ├── shell/            # CommandBar, ApprovalQueue
 │   │   │   ├── audit/            # AuditLogViewer
@@ -84,28 +134,15 @@ agent-world/
 │   │   └── providers/            # LedgerProvider, etc.
 │   └── ...
 │
-├── frontend-vue/                 # ChatDev Canvas (Vue.js)
-│   ├── pages/                    # Workflow views
-│   ├── components/               # VueFlow nodes
-│   └── public/sprites/           # 144 agent avatars
-│
-├── aws/                          # Terraform infrastructure
-│   ├── main.tf                   # ECS, RDS, ElastiCache
-│   └── ecs-task-definition.json
+├── docs/                         # Architecture documentation
+│   ├── FEEDBACK_LOOP.md          # Production improvement pipeline
+│   ├── STRATEGIC_PIVOT.md        # Business diagnosis positioning
+│   ├── SYSTEM_DESIGN_INTEGRATION.md
+│   └── ...
 │
 ├── k8s/                          # Kubernetes manifests
-│   └── deployment.yaml
-│
-├── nginx/                        # Reverse proxy
-│   └── nginx.conf
-│
-├── scripts/                      # Deployment scripts
-│   └── deploy.sh
-│
-├── docker-compose.prod.yml       # Production Docker stack
-├── backend/Dockerfile            # Container build
+├── aws/                          # Terraform infrastructure
 └── .github/workflows/            # CI/CD pipelines
-    └── build-and-deploy.yml
 ```
 
 ---
@@ -155,6 +192,69 @@ npm run dev
 
 ---
 
+## 🧠 Core Workflow: Diagnose → Strategize → Execute → Learn
+
+### 1. Intake (Gather Context)
+User provides business information through wizard:
+- **Business model**: Etsy POD, Shopify, TikTok, service business
+- **Stage**: Ideation, traction, growth, optimization
+- **Goals**: Revenue target, audience size, launch timeline
+- **Resources**: Hours/week, budget, team size, skills
+- **Current metrics**: Traffic, conversion, revenue (if available)
+
+**Agent**: Ultron (orchestrator) collects and structures context
+
+### 2. Diagnosis (Identify Bottlenecks)
+Nova analyzes the business context and identifies constraints:
+- **Etsy POD**: Listing quality, niche saturation, CTR, conversion, fulfillment
+- **Shopify**: Traffic quality, conversion rate, AOV, retention, unit economics
+- **TikTok**: Content consistency, engagement quality, audience growth, monetization
+- **Service**: Lead flow, close rate, capacity, cash flow
+
+**Output**: Ranked bottlenecks with severity and estimated impact
+
+### 3. Strategy (Recommend Interventions)
+Forge matches bottlenecks to best interventions given resources:
+- Filters by time/budget/skill constraints
+- Scores by expected impact / effort ratio
+- Builds prioritized action plan
+
+**Output**: Strategy recommendation with expected outcomes and measurement plan
+
+### 4. Execution (Take Action)
+Approved actions are executed through Channel Registry:
+- **Etsy**: Create optimized listings, adjust pricing, update tags
+- **Shopify**: Landing page tests, email campaigns, ad optimization
+- **TikTok**: Content calendar, trend jacking, collaboration outreach
+- **Service**: Lead gen content, proposal templates, capacity planning
+
+**Human approval required for**: Publishing, pricing changes, customer communications
+
+### 5. Feedback Loop (Validate & Improve)
+System learns from outcomes:
+- **Observe**: Track execution results, KPI changes
+- **Score**: Automated evaluation of strategy effectiveness
+- **Review**: Human review of ambiguous results
+- **Curate**: Build dataset of successful vs failed strategies
+- **Patch**: Update diagnostic logic and strategy recommendations
+- **Release**: Deploy improved models with quality gates
+
+---
+
+## 🤖 Agent Templates
+
+Pre-configured agents for business diagnosis and growth:
+
+| Agent | Role | Autonomous Actions | Approval Required |
+|-------|------|-------------------|-------------------|
+| **Nova** | Diagnostic Engine | Research, data analysis, bottleneck identification | None (read-only) |
+| **Forge** | Strategy & Planning | Build action plans, create checklists, generate copy | Publishing, pricing changes |
+| **Pixel** | Creative Assets | Generate designs, thumbnails, visualizations | Final asset approval |
+| **Cipher** | Communications | Inbox classification, draft replies | Sending messages |
+| **Ultron** | Orchestrator | Route tasks, track state, escalate blockers | Bulk actions, cross-platform changes |
+
+---
+
 ## 🔐 Security Features
 
 ### RBAC (Role-Based Access Control)
@@ -184,6 +284,39 @@ npm run dev
 ---
 
 ## 📊 API Endpoints
+
+### Diagnostics & Strategy
+
+```
+POST /diagnostics/run                    # Run business diagnosis
+GET  /diagnostics/{id}                   # Get diagnosis results
+GET  /diagnostics/{id}/bottlenecks       # List identified bottlenecks
+
+POST /strategy/generate                  # Generate strategy from diagnosis
+GET  /strategy/{id}                      # Get strategy recommendation
+POST /strategy/{id}/approve              # Approve strategy for execution
+
+POST /business/intake                    # Submit business context
+GET  /business/{id}/context              # Get stored context
+```
+
+### Agent Management
+
+```
+GET  /agents/templates                  # List agent templates
+POST /agents/spawn                      # Spawn agent from template
+GET  /agents/{id}/status                # Check agent status
+POST /agents/{id}/tasks                 # Assign task to agent
+```
+
+### Channel Integration
+
+```
+GET  /channels                          # List connected channels
+POST /channels/connect                  # Connect new channel
+POST /channels/{id}/test              # Test connection
+POST /channels/{id}/execute           # Execute approved action
+```
 
 ### Governance v2
 
@@ -332,4 +465,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Built with ❤️ by KC (Kimi Claw) for Anthony**  
-**Mission: $10,000/month automated content arbitrage**
+**Mission: Build the definitive business diagnosis and growth operating system**
