@@ -82,6 +82,8 @@ class Business(Base):
     agents = relationship("Agent", back_populates="business", cascade="all, delete-orphan")
     rooms = relationship("Room", back_populates="business", cascade="all, delete-orphan")
     tasks = relationship("TaskQueue", back_populates="business", cascade="all, delete-orphan")
+    config = relationship("BusinessConfig", back_populates="business", uselist=False, cascade="all, delete-orphan")
+    config = relationship("BusinessConfig", back_populates="business", uselist=False, cascade="all, delete-orphan")
 
 class Agent(Base):
     """Agent entity with lifecycle and capabilities"""

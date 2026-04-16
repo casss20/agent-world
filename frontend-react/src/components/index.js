@@ -12,3 +12,12 @@ export {
   LedgerAuditTrail, 
   LedgerStatusPanel 
 } from './ledger';
+
+// Setup Wizard components
+export { 
+  SetupWizard,
+  CreateBusinessModal 
+} from './setup';
+
+// Revenue components
+export { RevenueWidget } from './revenue';

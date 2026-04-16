@@ -1,275 +1,182 @@
 """
-Revenue Tracking Models and Metrics
-Phase 5 Ticket 1: Revenue Dashboard
+revenue_models.py — Agent World
+
+Hybrid revenue tracking: Lightweight internal aggregator for agent visibility
++ external tool integration (Stripe, Meta Ads Manager) for compliance.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, Index
+from sqlalchemy.orm import relationship
+from database import Base
 from datetime import datetime
-from enum import Enum
 import json
 
 
-class CampaignStatus(str, Enum):
-    ACTIVE = "active"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    ARCHIVED = "archived"
+class RevenueTransaction(Base):
+    """Individual sale transaction from any channel"""
+    __tablename__ = "revenue_transactions"
+    
+    id = Column(Integer, primary_key=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    tenant_id = Column(String(100), nullable=False, index=True)
+    
+    # Transaction details
+    channel = Column(String(50))  # etsy, amazon_kdp, shopify, gumroad, stripe
+    order_id = Column(String(255), index=True)
+    product_id = Column(String(255))
+    product_name = Column(String(500))
+    
+    # Financials
+    gross_revenue = Column(Float, default=0.0)  # Before fees
+    platform_fee = Column(Float, default=0.0)     # Etsy listing fee, etc
+    payment_fee = Column(Float, default=0.0)    # Stripe/PayPal fee
+    net_revenue = Column(Float, default=0.0)    # After all fees
+    currency = Column(String(3), default="USD")
+    
+    # Attribution
+    campaign_id = Column(String(255))  # Link to ad campaign that drove this sale
+    attributed_to_agent = Column(String(100))  # Which agent created the product
+    
+    # Metadata
+    transaction_time = Column(DateTime, default=datetime.utcnow)
+    raw_data = Column(Text)  # JSON blob from original API response
+    synced_from = Column(String(50))  # stripe, etsy_api, manual_import
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_revenue_business_time', 'business_id', 'transaction_time'),
+        Index('idx_revenue_channel_time', 'channel', 'transaction_time'),
+        Index('idx_revenue_campaign', 'campaign_id'),
+    )
 
 
-class SourcePlatform(str, Enum):
-    REDDIT = "reddit"
-    HACKERNEWS = "hackernews"
-    PRODUCTHUNT = "producthunt"
-    TWITTER = "twitter"
+class AdSpendTransaction(Base):
+    """Ad spend from Meta, Google, Amazon, TikTok ads"""
+    __tablename__ = "ad_spend_transactions"
+    
+    id = Column(Integer, primary_key=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    tenant_id = Column(String(100), nullable=False, index=True)
+    
+    # Platform details
+    platform = Column(String(50))  # meta, google, amazon_ads, tiktok
+    campaign_id = Column(String(255), index=True)
+    campaign_name = Column(String(500))
+    ad_set_id = Column(String(255))
+    ad_id = Column(String(255))
+    
+    # Financials
+    spend = Column(Float, default=0.0)
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    conversions = Column(Integer, default=0)  # Platform-reported
+    currency = Column(String(3), default="USD")
+    
+    # Attribution (link to our campaigns)
+    internal_campaign_id = Column(String(255))  # Our campaign tracking ID
+    
+    # Time (hourly or daily granularity from APIs)
+    transaction_time = Column(DateTime, default=datetime.utcnow)
+    
+    raw_data = Column(Text)
+    synced_from = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_adspend_business_time', 'business_id', 'transaction_time'),
+        Index('idx_adspend_platform_time', 'platform', 'transaction_time'),
+        Index('idx_adspend_internal_campaign', 'internal_campaign_id'),
+    )
 
 
-class PublishPlatform(str, Enum):
-    TWITTER = "twitter"
-    LINKEDIN = "linkedin"
-    MEDIUM = "medium"
-    YOUTUBE = "youtube"
+class CampaignPerformance(Base):
+    """Aggregated campaign metrics — ROAS, CPA, etc."""
+    __tablename__ = "campaign_performance"
+    
+    id = Column(Integer, primary_key=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    tenant_id = Column(String(100), nullable=False, index=True)
+    
+    # Campaign identification
+    campaign_id = Column(String(255), index=True)  # Internal ID
+    campaign_name = Column(String(500))
+    platform = Column(String(50))  # meta, google, etc
+    product_id = Column(String(255))  # What we're selling
+    
+    # Time window (daily or hourly rollups)
+    date = Column(DateTime, nullable=False)
+    granularity = Column(String(20), default="daily")  # hourly, daily, weekly
+    
+    # Aggregated metrics
+    ad_spend = Column(Float, default=0.0)
+    revenue_attributed = Column(Float, default=0.0)  # From RevenueTransaction.campaign_id
+    orders_attributed = Column(Integer, default=0)
+    
+    # Calculated metrics (denormalized for fast queries)
+    roas = Column(Float, default=0.0)  # Return on Ad Spend = revenue / spend
+    cpa = Column(Float, default=0.0)   # Cost Per Acquisition = spend / orders
+    aov = Column(Float, default=0.0)   # Average Order Value = revenue / orders
+    
+    # Platform metrics
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    ctr = Column(Float, default=0.0)   # Click-through rate
+    cpc = Column(Float, default=0.0)   # Cost per click
+    
+    # Agent decisions
+    agent_action = Column(String(50))  # scaled, paused, maintained
+    agent_reasoning = Column(Text)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_perf_business_date', 'business_id', 'date'),
+        Index('idx_perf_campaign_date', 'campaign_id', 'date'),
+        Index('idx_perf_roas', 'roas'),  # For "find underperforming campaigns"
+    )
 
 
-@dataclass
-class RevenueCampaign:
-    """A content arbitrage campaign with revenue tracking"""
-    id: str
-    name: str
-    status: CampaignStatus
+class RevenueSyncLog(Base):
+    """Track last sync times for each external integration"""
+    __tablename__ = "revenue_sync_logs"
     
-    # Source (where trend discovered)
-    source_platform: SourcePlatform
-    source_url: str
-    source_engagement: int  # upvotes, likes, etc.
+    id = Column(Integer, primary_key=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    tenant_id = Column(String(100), nullable=False)
     
-    # Content (what was created)
-    content_headline: str
-    content_body: str
-    content_platform: PublishPlatform
-    publish_url: Optional[str] = None
+    integration = Column(String(50))  # stripe, etsy, meta_ads, google_ads
+    last_sync_at = Column(DateTime)
+    last_transaction_time = Column(DateTime)  # Up to what time we synced
+    transactions_synced = Column(Integer, default=0)
+    status = Column(String(50))  # success, error, partial
+    error_message = Column(Text)
     
-    # Revenue tracking
-    impressions: int = 0
-    clicks: int = 0
-    conversions: int = 0
-    revenue_usd: float = 0.0
-    cost_usd: float = 0.0  # API costs, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Affiliate tracking
-    affiliate_links: List[Dict[str, Any]] = field(default_factory=list)
-    affiliate_revenue: float = 0.0
-    
-    # Timestamps
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    published_at: Optional[str] = None
-    
-    @property
-    def cpa(self) -> float:
-        """Cost per acquisition"""
-        if self.conversions > 0:
-            return self.cost_usd / self.conversions
-        return 0.0
-    
-    @property
-    def roas(self) -> float:
-        """Return on ad spend (revenue / cost)"""
-        if self.cost_usd > 0:
-            return self.revenue_usd / self.cost_usd
-        return 0.0
-    
-    @property
-    def ctr(self) -> float:
-        """Click-through rate"""
-        if self.impressions > 0:
-            return (self.clicks / self.impressions) * 100
-        return 0.0
-    
-    @property
-    def conversion_rate(self) -> float:
-        """Conversion rate"""
-        if self.clicks > 0:
-            return (self.conversions / self.clicks) * 100
-        return 0.0
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "status": self.status.value,
-            "source_platform": self.source_platform.value,
-            "source_url": self.source_url,
-            "source_engagement": self.source_engagement,
-            "content_headline": self.content_headline,
-            "content_platform": self.content_platform.value,
-            "publish_url": self.publish_url,
-            "impressions": self.impressions,
-            "clicks": self.clicks,
-            "conversions": self.conversions,
-            "revenue_usd": self.revenue_usd,
-            "cost_usd": self.cost_usd,
-            "affiliate_revenue": self.affiliate_revenue,
-            "cpa": self.cpa,
-            "roas": self.roas,
-            "ctr": self.ctr,
-            "conversion_rate": self.conversion_rate,
-            "created_at": self.created_at,
-            "published_at": self.published_at,
-        }
+    __table_args__ = (
+        Index('idx_sync_business_integration', 'business_id', 'integration'),
+    )
 
 
-@dataclass
-class RevenueDashboard:
-    """Aggregated revenue dashboard metrics"""
+class RevenueGoal(Base):
+    """Revenue targets and tracking"""
+    __tablename__ = "revenue_goals"
     
-    # Campaign counts
-    campaigns_live: int = 0
-    campaigns_completed: int = 0
-    campaigns_total: int = 0
+    id = Column(Integer, primary_key=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    tenant_id = Column(String(100), nullable=False)
     
-    # Aggregate metrics
-    total_impressions: int = 0
-    total_clicks: int = 0
-    total_conversions: int = 0
-    total_revenue: float = 0.0
-    total_cost: float = 0.0
-    total_affiliate_revenue: float = 0.0
+    goal_type = Column(String(50))  # daily, weekly, monthly, custom
+    target_amount = Column(Float)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
     
-    # Calculated metrics
-    @property
-    def overall_cpa(self) -> float:
-        if self.total_conversions > 0:
-            return self.total_cost / self.total_conversions
-        return 0.0
+    # Progress (updated by background job)
+    current_amount = Column(Float, default=0.0)
+    percent_complete = Column(Float, default=0.0)
     
-    @property
-    def overall_roas(self) -> float:
-        if self.total_cost > 0:
-            return self.total_revenue / self.total_cost
-        return 0.0
-    
-    @property
-    def overall_ctr(self) -> float:
-        if self.total_impressions > 0:
-            return (self.total_clicks / self.total_impressions) * 100
-        return 0.0
-    
-    @property
-    def total_profit(self) -> float:
-        return self.total_revenue + self.total_affiliate_revenue - self.total_cost
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "campaigns": {
-                "live": self.campaigns_live,
-                "completed": self.campaigns_completed,
-                "total": self.campaigns_total,
-            },
-            "metrics": {
-                "impressions": self.total_impressions,
-                "clicks": self.total_clicks,
-                "conversions": self.total_conversions,
-                "revenue": round(self.total_revenue, 2),
-                "affiliate_revenue": round(self.total_affiliate_revenue, 2),
-                "cost": round(self.total_cost, 2),
-                "profit": round(self.total_profit, 2),
-            },
-            "kpis": {
-                "cpa": round(self.overall_cpa, 2),
-                "roas": round(self.overall_roas, 2),
-                "ctr": round(self.overall_ctr, 2),
-            },
-            "timestamp": datetime.now().isoformat(),
-        }
-
-
-class RevenueTracker:
-    """Track revenue metrics for campaigns"""
-    
-    def __init__(self, redis_client=None):
-        self.campaigns: Dict[str, RevenueCampaign] = {}
-        self.redis = redis_client
-    
-    def create_campaign(self, **kwargs) -> RevenueCampaign:
-        """Create a new revenue campaign"""
-        campaign_id = f"camp_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        campaign = RevenueCampaign(id=campaign_id, **kwargs)
-        self.campaigns[campaign_id] = campaign
-        return campaign
-    
-    def update_campaign_metrics(self, campaign_id: str, **metrics):
-        """Update campaign metrics (impressions, clicks, etc.)"""
-        if campaign_id not in self.campaigns:
-            raise ValueError(f"Campaign {campaign_id} not found")
-        
-        campaign = self.campaigns[campaign_id]
-        for key, value in metrics.items():
-            if hasattr(campaign, key):
-                setattr(campaign, key, value)
-    
-    def get_dashboard(self) -> RevenueDashboard:
-        """Generate revenue dashboard from all campaigns"""
-        dashboard = RevenueDashboard()
-        
-        for campaign in self.campaigns.values():
-            dashboard.campaigns_total += 1
-            
-            if campaign.status == CampaignStatus.ACTIVE:
-                dashboard.campaigns_live += 1
-            elif campaign.status == CampaignStatus.COMPLETED:
-                dashboard.campaigns_completed += 1
-            
-            dashboard.total_impressions += campaign.impressions
-            dashboard.total_clicks += campaign.clicks
-            dashboard.total_conversions += campaign.conversions
-            dashboard.total_revenue += campaign.revenue_usd
-            dashboard.total_cost += campaign.cost_usd
-            dashboard.total_affiliate_revenue += campaign.affiliate_revenue
-        
-        return dashboard
-    
-    def get_metrics_by_source(self) -> Dict[str, Dict[str, Any]]:
-        """Get aggregated metrics by source platform"""
-        by_source = {}
-        
-        for source in SourcePlatform:
-            campaigns = [c for c in self.campaigns.values() if c.source_platform == source]
-            if not campaigns:
-                continue
-            
-            by_source[source.value] = {
-                "campaigns": len(campaigns),
-                "impressions": sum(c.impressions for c in campaigns),
-                "revenue": round(sum(c.revenue_usd for c in campaigns), 2),
-                "affiliate_revenue": round(sum(c.affiliate_revenue for c in campaigns), 2),
-                "cost": round(sum(c.cost_usd for c in campaigns), 2),
-                "roas": round(
-                    sum(c.revenue_usd for c in campaigns) / max(sum(c.cost_usd for c in campaigns), 0.01),
-                    2
-                ),
-            }
-        
-        return by_source
-    
-    def get_metrics_by_publish_platform(self) -> Dict[str, Dict[str, Any]]:
-        """Get aggregated metrics by publish platform"""
-        by_platform = {}
-        
-        for platform in PublishPlatform:
-            campaigns = [c for c in self.campaigns.values() if c.content_platform == platform]
-            if not campaigns:
-                continue
-            
-            by_platform[platform.value] = {
-                "campaigns": len(campaigns),
-                "impressions": sum(c.impressions for c in campaigns),
-                "revenue": round(sum(c.revenue_usd for c in campaigns), 2),
-                "affiliate_revenue": round(sum(c.affiliate_revenue for c in campaigns), 2),
-                "cost": round(sum(c.cost_usd for c in campaigns), 2),
-                "roas": round(
-                    sum(c.revenue_usd for c in campaigns) / max(sum(c.cost_usd for c in campaigns), 0.01),
-                    2
-                ),
-            }
-        
-        return by_platform
+    created_at = Column(DateTime, default=datetime.utcnow)
