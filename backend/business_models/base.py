@@ -58,6 +58,7 @@ class BusinessContext:
     current_metrics: Dict[str, float]  # Traffic, conversion, revenue, etc.
     channels: List[str]             # Connected platforms
     notes: Optional[str] = None
+    business_id: Optional[str] = None  # Unique identifier
 
 
 @dataclass
@@ -218,7 +219,7 @@ class BusinessModel(ABC):
         
         return Diagnosis(
             business_model=self.model_id,
-            business_id=context.get("business_id", "unknown"),
+            business_id=getattr(context, 'business_id', 'unknown'),
             primary_bottleneck=bottlenecks[0] if bottlenecks else None,
             secondary_bottlenecks=bottlenecks[1:3],
             health_score=health_score
