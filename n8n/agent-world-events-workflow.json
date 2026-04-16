@@ -1,0 +1,199 @@
+{
+  "name": "Agent World",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-world-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-receive",
+      "name": "Agent World Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "agent-world-events"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.body.event_type }}",
+              "rightValue": "sale_made",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch-sale",
+      "name": "Sale Made?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.body.event_type }}",
+              "rightValue": "campaign_scaled",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch-scale",
+      "name": "Campaign Scaled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "channel": "#revenue-alerts",
+        "text": "="
+          ":moneybag: *Sale Made!*\\n"
+          + "Channel: {{ $json.body.payload.channel }}\\n"
+          + "Revenue: ${{ $json.body.payload.revenue }}\\n"
+          + "Product: {{ $json.body.payload.product_name }}\\n"
+          + "Time: {{ $json.body.payload.timestamp }}"
+      },
+      "id": "slack-sale",
+      "name": "Notify Sale (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#marketing-alerts",
+        "text": "="
+          ":rocket: *Campaign Scaled!*\\n"
+          + "Campaign: {{ $json.body.payload.campaign_name }}\\n"
+          + "ROAS: {{ $json.body.payload.roas }}\\n"
+          + "New Budget: ${{ $json.body.payload.new_budget }}\\n"
+          + "Platform: {{ $json.body.payload.platform }}"
+      },
+      "id": "slack-scale",
+      "name": "Notify Scale (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [700, 500]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetName": "Revenue Log",
+        "values": {
+          "0": [
+            "={{ $json.body.payload.timestamp }}",
+            "={{ $json.body.payload.channel }}",
+            "={{ $json.body.payload.revenue }}",
+            "={{ $json.body.payload.order_id }}",
+            "={{ $json.body.payload.product_name }}"
+          ]
+        }
+      },
+      "id": "sheets-sale",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [700, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate webhook signature\nconst crypto = require('crypto');\nconst secret = $credentials.agentWorldSecret;\nconst signature = $headers['x-webhook-signature'];\n\nif (!signature) {\n  return [{ json: { valid: false, error: 'No signature' } }];\n}\n\nconst payload = JSON.stringify($json.body);\nconst expected = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(payload)\n  .digest('hex');\n\nreturn [{\n  json: {\n    valid: signature === expected,\n    event_type: $json.body.event_type\n  }\n}];"
+      },
+      "id": "validate-sig",
+      "name": "Validate Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [250, 100]
+    }
+  ],
+  "connections": {
+    "Agent World Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Signature": {
+      "main": [
+        [
+          {
+            "node": "Sale Made?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sale Made?": {
+      "main": [
+        [
+          {
+            "node": "Notify Sale (Slack)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Campaign Scaled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campaign Scaled?": {
+      "main": [
+        [
+          {
+            "node": "Notify Scale (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["agent-world", "revenue", "alerts"]
+}
