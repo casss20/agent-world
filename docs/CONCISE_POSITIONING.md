@@ -32,6 +32,26 @@
 
 ---
 
+## Refined Agent-Human Relationship
+
+**Original (oversimplified):**
+> "Agents do, humans approve"
+
+**Better (credible):**
+> "Agent World diagnoses, recommends, drafts, routes, and automates where safe; humans approve or complete high-risk and high-context steps."
+
+This makes the system sound more credible and less like "full automation lite." It also aligns with human-agent collaboration best practices:
+
+- **Explicit handoff triggers**: When to escalate (low confidence, explicit request, high risk)
+- **Context preservation**: Full conversation history passed to human
+- **Clear communication**: "I'm connecting you with a specialist who can help with this"
+- **Workflow continuity**: Agent waits, human completes, agent continues with feedback
+- **Smart routing**: Content issues → user, technical issues → support, legal → review
+
+---
+
 ## Full Documentation
 
 See [POSITIONING_STATEMENT.md](./POSITIONING_STATEMENT.md) for detailed breakdown of patterns pulled from each competitor.
+
+See [AGENCYOS_PATTERNS.md](./AGENCYOS_PATTERNS.md) for operational infrastructure patterns and implementation roadmap.

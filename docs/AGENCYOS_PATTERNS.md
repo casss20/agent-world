@@ -172,58 +172,139 @@ class TikTokUGCModel(BusinessModel):
 
 ---
 
-## Patterns to Implement (Priority)
+## Patterns to Implement (Refined Priority)
 
-### High Priority (Next Sprint)
+### P1 - Proposal Builder UI
 
-1. **Enhanced Proposal Builder**
-   - Strategy recommendation as polished proposal
-   - Cost breakdown, timeline, expected impact
-   - Client approval workflow
-   - One-click approve → activate agents
+**Why first:** Recommendations become much more valuable when they look like decision-ready offers with scope, expected impact, steps, owner, and timeline. Directus AgencyOS treats proposal-building as a core workflow.
 
-2. **Asset Library**
-   - Design file management (thumbnails, mockups, exports)
-   - Version control for assets
-   - Search, filter, organize
-   - Direct download/share
+**Implementation:**
+```javascript
+<ProposalCard>
+  <Header>
+    <Title>30-Day Growth Sprint</Title>
+    <Badge color="green">Expected: +5,500 followers</Badge>
+  </Header>
+  
+  <CostBreakdown>
+    <LineItem>Your time: 30 min/day × 30 days</LineItem>
+    <LineItem>Tool costs: $0 (free tier)</LineItem>
+    <LineItem>Total investment: ~15 hours</LineItem>
+    <Total>Expected return: $200-500/month</Total>
+  </CostBreakdown>
+  
+  <Timeline>
+    <Week>Week 1: Setup + batch content</Week>
+    <Week>Week 2-3: Post daily + test hooks</Week>
+    <Week>Week 4: Analyze + optimize</Week>
+  </Timeline>
+  
+  <AgentsAssigned>
+    <AgentBadge icon="📈" name="Nova" task="Trend research" />
+    <AgentBadge icon="🎨" name="Pixel" task="Thumbnails" />
+    <AgentBadge icon="✍️" name="Forge" task="Scripts" />
+  </AgentsAssigned>
+  
+  <Actions>
+    <Button variant="primary">👍 Approve & Activate</Button>
+    <Button variant="secondary">✏️ Modify</Button>
+    <Button variant="ghost">👎 Decline</Button>
+  </Actions>
+</ProposalCard>
+```
 
-3. **Task Assignment to Humans**
-   - Agent creates task → routes to human
-   - Human completes → agent continues
-   - Context preserved across handoff
+### P1 - Asset Library
 
-### Medium Priority (Next Month)
+**Why first:** Once you support Shopify, Etsy, personal brands, or service businesses, creative assets quickly become a first-class operational object that needs search, approvals, and versioning.
 
-4. **More Business Model Templates**
-   - Shopify Dropship
-   - Freelance Services
-   - Digital Products/Courses
-   - SaaS/Apps
+**Features:**
+- Design file management (thumbnails, mockups, exports)
+- Version control for assets
+- Search, filter, organize
+- Direct download/share
+- Approval workflow (Cipher reviews before use)
 
-5. **Dashboard Builder**
-   - Customizable widgets
-   - Drag-drop layout
-   - Save/share dashboards
-   - Role-based default views
+```python
+# Asset management endpoints
+POST /assets/upload
+GET /assets?type=thumbnail&status=approved
+GET /assets/{id}/versions
+POST /assets/{id}/approve  # Ledger approval for use
+```
 
-6. **Stripe Integration**
-   - Connect Stripe account
-   - Show real revenue (not just tracked)
-   - Payout management
-   - Tax reporting helpers
+### P2 - Human Task Assignment (Elevated Priority)
 
-### Lower Priority (Future)
+**Why elevated:** This is a major usability unlock. Handoffs between agents and humans work best when the trigger is explicit, context is preserved, and feedback can loop back into the system.
 
-7. **White-Label Client Portal**
-   - Custom branding
-   - Domain mapping
-   - Branded emails
+**Best Practices (from industry research):**
 
-8. **Mobile App**
-   - iOS/Android apps
-   - Push notifications
-   - Quick approvals
+| Principle | Implementation |
+|-----------|----------------|
+| **Maintain complete context** | Pass full chat history, collected data, and business context to human |
+| **Define smart triggers** | Explicit request, 2+ failed attempts, sentiment frustration, high-risk action |
+| **Communicate clearly** | "I'm connecting you with a specialist who can help with this" |
+| **Preserve workflow** | Agent waits, human completes, agent continues with feedback |
+| **Route to right specialist** | Content issues → user, technical issues → support, legal → review |
+
+**Implementation:**
+```python
+# Agent creates human task
+task = {
+    "type": "human_review",
+    "trigger": "low_confidence",  # or "explicit_request", "sentiment_negative"
+    "context": {
+        "conversation_history": [...],
+        "agent_attempts": 2,
+        "collected_data": {...},
+        "business_id": "..."
+    },
+    "agent": "Pixel",
+    "preview_url": "...",
+    "options": ["approve", "request_changes", "reject"],
+    "blocking": True  # Agent waits for human
+}
+
+# Human completes
+POST /tasks/{id}/complete
+{
+    "decision": "request_changes",
+    "feedback": "Make the text larger, brand color should be indigo not blue"
+}
+
+# Agent continues with feedback
+→ Pixel regenerates with human feedback incorporated
+```
+
+### P2 - More Business Templates
+
+**Why:** Templates are one of the best ways to scale cross-business support without making the experience generic. Directus explicitly leans on templates to accelerate setup.
+
+**Models to add:**
+- Shopify Dropship
+- Freelance Services
+- Digital Products/Courses
+- SaaS/Apps
+- Consulting/Agency
+
+### P3 - Customizable Dashboards
+
+**Why:** Useful, but less urgent than the underlying workflow mechanics. Directus supports customizable dashboards, but this matters more after you know what operators actually need to see regularly.
+
+**Features:**
+- Customizable widgets
+- Drag-drop layout
+- Save/share dashboards
+- Role-based default views
+
+### P3 - Stripe Integration
+
+**Why:** Important for real revenue truth, but only urgent if billing/revenue automation is central to the first wedge.
+
+**Features:**
+- Connect Stripe account
+- Show real revenue (not just tracked)
+- Payout management
+- Tax reporting helpers
 
 ---
 
@@ -263,79 +344,43 @@ Agent World (React + FastAPI)
 |----------|-------------|
 | For **digital agencies** | For **any business model** (TikTok, Etsy, YouTube, services) |
 | **Manual** project management | **AI-driven** diagnosis and execution |
-| **Human** does the work | **8 agents** do the work, human approves |
+| **Human** does the work | **8 agents** do the work, human approves high-risk steps |
 | **Client** collaboration focus | **Growth** execution focus |
 | **Template** → customize manually | **Diagnosis** → activate agents automatically |
 | Project tracking | **Bottleneck detection** + strategy generation |
 
 ---
 
+## Refined Positioning
+
+**Original (oversimplified):**
+> "Agents do, humans approve"
+
+**Better (credible):**
+> "Agent World diagnoses, recommends, drafts, routes, and automates where safe; humans approve or complete high-risk and high-context steps."
+
+This makes the system sound more credible and less like "full automation lite." It also aligns with human-agent collaboration best practices, where explicit handoff triggers and context preservation are essential.
+
+---
+
 ## Implementation Plan
 
-### Phase 1: Proposal Builder (This Week)
+### Phase 1: Proposal Builder + Asset Library (This Week)
+- Polish StrategyRecommendation into compelling proposal cards
+- Add cost breakdown, timeline, agent assignments
+- Create asset upload/management system
+- Add approval workflow for assets
 
-```javascript
-// StrategyRecommendation.jsx enhancement
-<ProposalCard>
-  <Header>
-    <Title>30-Day Growth Sprint</Title>
-    <Badge color="green">Expected: +5,500 followers</Badge>
-  </Header>
-  
-  <CostBreakdown>
-    <LineItem>Your time: 30 min/day × 30 days</LineItem>
-    <LineItem>Tool costs: $0 (free tier)</LineItem>
-    <LineItem>Total investment: ~15 hours</LineItem>
-    <Total>Expected return: $200-500/month</Total>
-  </CostBreakdown>
-  
-  <Timeline>
-    <Week>Week 1: Setup + batch content</Week>
-    <Week>Week 2-3: Post daily + test hooks</Week>
-    <Week>Week 4: Analyze + optimize</Week>
-  </Timeline>
-  
-  <AgentsAssigned>
-    <AgentBadge icon="📈" name="Nova" task="Trend research" />
-    <AgentBadge icon="🎨" name="Pixel" task="Thumbnails" />
-    <AgentBadge icon="✍️" name="Forge" task="Scripts" />
-  </AgentsAssigned>
-  
-  <Actions>
-    <Button variant="primary">👍 Approve & Activate</Button>
-    <Button variant="secondary">✏️ Modify</Button>
-    <Button variant="ghost">👎 Decline</Button>
-  </Actions>
-</ProposalCard>
-```
+### Phase 2: Human Task Assignment + More Models (Next Week)
+- Implement explicit handoff triggers
+- Build context preservation system
+- Add Shopify, Services templates
+- Test handoff → human → continue flow
 
-### Phase 2: Asset Library (Next Week)
-
-```python
-# Asset management endpoints
-POST /assets/upload
-GET /assets?type=thumbnail&status=approved
-GET /assets/{id}/versions
-POST /assets/{id}/approve  # Ledger approval for use
-```
-
-### Phase 3: Human Task Assignment (Following Week)
-
-```python
-# Agent creates human task
-task = {
-    "type": "human_review",
-    "context": "Thumbnail generated, needs your brand check",
-    "agent": "Pixel",
-    "preview_url": "...",
-    "options": ["approve", "request_changes", "reject"],
-    "blocking": True  # Agent waits for human
-}
-
-# Human completes
-POST /tasks/{id}/complete
-→ Agent continues workflow
-```
+### Phase 3: Dashboards + Stripe (Following Weeks)
+- Customizable widgets
+- Drag-drop layouts
+- Stripe Connect integration
 
 ---
 
@@ -345,15 +390,16 @@ POST /tasks/{id}/complete
 1. ✅ **Operational infrastructure** (CRM, tasks, dashboards) — already implemented
 2. ✅ **Role-based structure** (admin, operator, viewer) — already implemented
 3. ✅ **Template system** (business models as templates) — already implemented
-4. ⚠️ **Proposal builder polish** — needs UI enhancement
-5. ⚠️ **Asset library** — needs file management system
-6. ⚠️ **Human task assignment** — needs explicit handoff mechanism
+4. ⚠️ **Proposal builder UI** — needs polish (P1)
+5. ⚠️ **Asset library** — needs file management system (P1)
+6. ⚠️ **Human task assignment** — needs explicit handoff mechanism (P2, elevated)
 
 **Differentiation maintained:**
 - Diagnosis-first (not manual project setup)
-- 8 specialist agents (not just a workspace)
+- 8-agent orchestration (not just a workspace)
 - Cross-business (not just agencies)
 - Revenue tracking + optimization (not just invoicing)
+- **Human-agent collaboration** with explicit handoffs (not full automation)
 
 ---
 
