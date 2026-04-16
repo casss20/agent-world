@@ -21,3 +21,15 @@ export {
 
 // Revenue components
 export { RevenueWidget } from './revenue';
+
+// Proposal components (P1)
+export { ProposalCard } from './proposals/ProposalCard';
+
+// Asset components (P1)
+export { AssetLibrary } from './assets/AssetLibrary';
+
+// Task components (P2)
+export { HumanTaskQueue } from './tasks/HumanTaskQueue';
+
+// Shared components
+export { Button } from './shared/Button';
