@@ -25,8 +25,36 @@ export { AuditLogViewer } from './audit/AuditLogViewer';
 // Revenue components
 export { RevenueWidget } from './revenue';
 
-// Proposal components (P1)
+// Proposal components (P1 - Block-based)
 export { ProposalCard } from './proposals/ProposalCard';
+export { 
+  ProposalHeader,
+  ProposalOutcome,
+  ProposalCostBreakdown,
+  ProposalTimeline,
+  ProposalAgents,
+  ProposalSteps,
+  ProposalRisks,
+  ProposalActions,
+  ProposalCardComposed
+} from './proposals/ProposalBlocks';
+
+// Proposal Acceptance (E-signature)
+export { 
+  StrategyAcceptanceForm,
+  SignaturePad,
+  SignatureType,
+  SignatureUpload
+} from './proposals/StrategyAcceptanceForm';
+
+// Timeline components
+export { 
+  MilestoneTimeline,
+  StrategyTimeline,
+  VerticalTimeline,
+  CompactTimeline,
+  AnimatedProgressBar
+} from './proposals/TimelineComponents';
 
 // Asset components (P1)
 export { AssetLibrary } from './assets/AssetLibrary';
@@ -36,3 +64,4 @@ export { HumanTaskQueue } from './tasks/HumanTaskQueue';
 
 // Shared components
 export { Button } from './shared/Button';
+export { FormInput, FormSelect, FormTextarea } from './shared/FormComponents';

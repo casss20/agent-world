@@ -1,16 +1,30 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ProposalCard } from '../components/proposals/ProposalCard';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { 
+  ProposalCardComposed,
+  StrategyAcceptanceForm,
+  StrategyTimeline,
+  MilestoneTimeline
+} from '../components/proposals';
 import { Button } from '../components/shared/Button';
 import { useApi } from '../hooks/useApi';
+import { usePrefillData } from '../hooks/usePrefill';
 
 export function StrategyRecommendation() {
   const { diagnosisId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { post, get, loading, error } = useApi();
   const [strategy, setStrategy] = useState(null);
   const [diagnosis, setDiagnosis] = useState(null);
+  const [business, setBusiness] = useState(null);
   const [approved, setApproved] = useState(false);
+  const [showAcceptanceForm, setShowAcceptanceForm] = useState(false);
+  const [acceptanceLoading, setAcceptanceLoading] = useState(false);
+  
+  // Check for prefill data from URL
+  const prefillData = usePrefillData();
+  const hasPrefill = Object.keys(prefillData).length > 0;
 
   useEffect(() => {
     if (diagnosisId) {
@@ -23,6 +37,7 @@ export function StrategyRecommendation() {
     const diagData = await get(`/diagnostics/${diagnosisId}`);
     if (diagData) {
       setDiagnosis(diagData);
+      setBusiness(diagData.business);
     }
 
     // Generate strategy
@@ -35,20 +50,41 @@ export function StrategyRecommendation() {
     }
   };
 
-  const handleApprove = async () => {
-    const result = await post(`/diagnostics/${diagnosisId}/approve`, {});
+  const handleApprove = () => {
+    // Show acceptance form instead of immediate approval
+    setShowAcceptanceForm(true);
+  };
+
+  const handleAcceptanceSubmit = async (formData) => {
+    setAcceptanceLoading(true);
+    
+    // Submit acceptance with signature
+    const result = await post(`/diagnostics/${diagnosisId}/accept`, {
+      ...formData,
+      signature_type: formData.signature?.type,
+      signature_data: formData.signature?.dataUrl || formData.signature?.text,
+      accepted_at: new Date().toISOString()
+    });
+    
     if (result) {
       setApproved(true);
+      setShowAcceptanceForm(false);
     }
+    setAcceptanceLoading(false);
   };
 
   const handleModify = () => {
-    // TODO: Open modification modal
     alert('Modify functionality coming soon - will allow editing timeline, budget, and agent assignments');
   };
 
   const handleDecline = () => {
     navigate(`/diagnostics/${diagnosisId}`);
+  };
+
+  const handleShare = () => {
+    const shareUrl = `${window.location.origin}/diagnostics/${diagnosisId}/strategy`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Strategy link copied to clipboard! Share with prefill: ?prefill_business_name=Acme');
   };
 
   if (loading || !strategy) {
@@ -61,7 +97,7 @@ export function StrategyRecommendation() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Strategy Recommendation</h1>
@@ -71,12 +107,33 @@ export function StrategyRecommendation() {
             : 'Review this proposal and approve to activate agents'
           }
         </p>
+        {hasPrefill && (
+          <p className="text-sm text-green-400 mt-2">
+            ✓ Form prefilled from shared link
+          </p>
+        )}
       </div>
 
       {/* Error */}
       {error && (
         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300">
           {error}
+        </div>
+      )}
+
+      {/* Acceptance Form Modal */}
+      {showAcceptanceForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-auto">
+            <StrategyAcceptanceForm
+              strategy={strategy}
+              business={business}
+              onSubmit={handleAcceptanceSubmit}
+              onCancel={() => setShowAcceptanceForm(false)}
+              loading={acceptanceLoading}
+              prefillData={prefillData}
+            />
+          </div>
         </div>
       )}
 
@@ -89,6 +146,12 @@ export function StrategyRecommendation() {
             <p className="text-white/60 mb-6">
               {strategy.primary_strategy?.name} is now active. Agents will begin execution.
             </p>
+            
+            {/* Execution Timeline */}
+            <div className="mb-6 text-left">
+              <StrategyTimeline strategy={strategy} currentWeek={1} />
+            </div>
+            
             <div className="flex gap-3 justify-center">
               <Button 
                 onClick={() => navigate('/channels')}
@@ -107,9 +170,10 @@ export function StrategyRecommendation() {
 
           {/* Show the approved proposal (read-only) */}
           <div className="opacity-60">
-            <ProposalCard 
+            <ProposalCardComposed 
               strategy={strategy}
               diagnosis={diagnosis}
+              organization={business}
               onApprove={() => {}}
               onModify={() => {}}
               onDecline={() => {}}
@@ -118,14 +182,24 @@ export function StrategyRecommendation() {
         </div>
       ) : (
         /* Proposal Card - Interactive */
-        <ProposalCard 
+        <ProposalCardComposed 
           strategy={strategy}
           diagnosis={diagnosis}
+          organization={business}
           onApprove={handleApprove}
           onModify={handleModify}
           onDecline={handleDecline}
           loading={loading}
+          shareBaseUrl={`${window.location.origin}/diagnostics/${diagnosisId}/strategy`}
         />
+      )}
+
+      {/* Visual Timeline Preview (shown before approval) */}
+      {!approved && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-white mb-4">Execution Preview</h2>
+          <StrategyTimeline strategy={strategy} currentWeek={0} />
+        </div>
       )}
 
       {/* Supporting Strategies */}
