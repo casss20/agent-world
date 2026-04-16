@@ -549,3 +549,64 @@ async def get_diagnostic_events(
             for e in related_events[:limit]
         ]
     }
+
+
+@router.post("/{diagnosis_id}/accept")
+async def accept_strategy(
+    diagnosis_id: str,
+    request: dict,
+    current_user = Depends(get_current_user)
+):
+    """Accept a strategy with e-signature."""
+    stored = _diagnosis_store.get(diagnosis_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Diagnosis not found")
+    
+    if stored["tenant_id"] != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    strategy = _strategy_store.get(diagnosis_id)
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    # Validate
+    if not request.get("acknowledgment"):
+        raise HTTPException(status_code=400, detail="Acknowledgment required")
+    
+    # Mark approved
+    strategy.approved = True
+    strategy.approved_at = datetime.utcnow()
+    
+    # Emit Ledger event
+    event_stream = get_event_stream()
+    if event_stream:
+        event_stream.emit(GovernanceEvent(
+            event_id=str(uuid.uuid4()),
+            timestamp=datetime.utcnow(),
+            event_type=EventType.STRATEGY_APPROVED,
+            agent_id="ultron",
+            action="strategy_accepted",
+            resource=f"diagnosis:{diagnosis_id}",
+            decision=f"Strategy '{strategy.primary_strategy.name}' accepted",
+            reasoning=f"Accepted by {request.get('first_name', 'Unknown')}",
+            risk_level=RiskLevel.LOW,
+            business_id=current_user.tenant_id,
+            latency_ms=0,
+            metadata={
+                "diagnosis_id": diagnosis_id,
+                "signature_type": request.get("signature_type", "draw"),
+                "has_signature": bool(request.get("signature_data"))
+            }
+        ))
+    
+    return {
+        "status": "approved",
+        "diagnosis_id": diagnosis_id,
+        "strategy_name": strategy.primary_strategy.name,
+        "accepted_at": datetime.utcnow().isoformat(),
+        "next_steps": [
+            "Agents will begin execution",
+            "Tasks will be assigned to appropriate agents",
+            "Progress will be tracked in real-time"
+        ]
+    }

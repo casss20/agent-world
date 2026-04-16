@@ -3,9 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ProposalCardComposed,
   StrategyAcceptanceForm,
-  StrategyTimeline,
-  MilestoneTimeline
-} from '../components/proposals';
+  StrategyTimeline
+} from '../components';
 import { Button } from '../components/shared/Button';
 import { useApi } from '../hooks/useApi';
 import { usePrefillData } from '../hooks/usePrefill';

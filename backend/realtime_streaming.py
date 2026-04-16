@@ -508,3 +508,174 @@ async def get_global_activity(
             for event_id, fields in events
         ]
     }
+
+
+# ============================================================================
+# TASK WEBSOCKET - Real-time task updates for HumanTaskQueue
+# ============================================================================
+
+class TaskConnectionManager:
+    """Manages WebSocket connections for real-time task updates"""
+    
+    def __init__(self):
+        # business_id -> set of WebSocket connections
+        self.business_connections: Dict[str, Set[WebSocket]] = {}
+        # Connection metadata
+        self.connection_info: Dict[WebSocket, dict] = {}
+    
+    async def connect(self, websocket: WebSocket, business_id: str, user_id: str):
+        """Connect user to business task stream"""
+        await websocket.accept()
+        
+        if business_id not in self.business_connections:
+            self.business_connections[business_id] = set()
+        
+        self.business_connections[business_id].add(websocket)
+        self.connection_info[websocket] = {
+            "business_id": business_id,
+            "user_id": user_id,
+            "connected_at": datetime.utcnow().isoformat()
+        }
+        
+        # Send initial connection confirmation
+        await websocket.send_json({
+            "type": "connection_established",
+            "business_id": business_id,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+    
+    def disconnect(self, websocket: WebSocket):
+        """Disconnect from task stream"""
+        info = self.connection_info.get(websocket)
+        if info:
+            business_id = info["business_id"]
+            if business_id in self.business_connections:
+                self.business_connections[business_id].discard(websocket)
+                if not self.business_connections[business_id]:
+                    del self.business_connections[business_id]
+            del self.connection_info[websocket]
+    
+    async def broadcast_task_update(self, business_id: str, task_data: dict):
+        """Broadcast task update to all connected clients for a business"""
+        if business_id not in self.business_connections:
+            return
+        
+        message = {
+            "type": "task_update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": task_data
+        }
+        
+        disconnected = []
+        for connection in self.business_connections[business_id]:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
+        
+        # Clean up disconnected clients
+        for conn in disconnected:
+            self.disconnect(conn)
+
+
+# Global task connection manager
+task_manager = TaskConnectionManager()
+
+
+@router.websocket("/tasks/{business_id}")
+async def task_websocket(
+    websocket: WebSocket,
+    business_id: str,
+    token: str = None
+):
+    """
+    WebSocket endpoint for real-time task updates.
+    
+    Clients connect to receive instant notifications when:
+    - New tasks are created
+    - Task status changes
+    - Tasks are assigned/reassigned
+    - Human intervention is required
+    """
+    # Verify token (simplified - should use proper auth)
+    if not token:
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+    
+    user_id = f"user_{token[:8]}"  # Simplified - extract from JWT in production
+    
+    try:
+        await task_manager.connect(websocket, business_id, user_id)
+        
+        # Listen for messages from client
+        while True:
+            try:
+                data = await websocket.receive_json()
+                
+                # Handle client actions
+                if data.get("action") == "ping":
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                
+                elif data.get("action") == "subscribe_task":
+                    # Client wants updates for specific task
+                    task_id = data.get("task_id")
+                    await websocket.send_json({
+                        "type": "subscription_confirmed",
+                        "task_id": task_id,
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": str(e)
+                })
+                
+    except WebSocketDisconnect:
+        pass
+    finally:
+        task_manager.disconnect(websocket)
+
+
+# ============================================================================
+# TASK BROADCAST HELPER - Call from other endpoints to trigger real-time updates
+# ============================================================================
+
+async def broadcast_task_created(business_id: str, task: dict):
+    """Broadcast new task creation to connected clients"""
+    await task_manager.broadcast_task_update(business_id, {
+        "event": "created",
+        "task": task
+    })
+
+
+async def broadcast_task_status_change(
+    business_id: str, 
+    task_id: str, 
+    old_status: str, 
+    new_status: str,
+    assigned_to: str = None
+):
+    """Broadcast task status change to connected clients"""
+    await task_manager.broadcast_task_update(business_id, {
+        "event": "status_changed",
+        "task_id": task_id,
+        "old_status": old_status,
+        "new_status": new_status,
+        "assigned_to": assigned_to
+    })
+
+
+async def broadcast_human_intervention_required(business_id: str, task: dict):
+    """Broadcast when human intervention is needed"""
+    await task_manager.broadcast_task_update(business_id, {
+        "event": "human_intervention_required",
+        "task": task,
+        "priority": "high",
+        "message": "Your input is needed to continue"
+    })

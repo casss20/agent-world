@@ -34,6 +34,7 @@ from n8n_webhook_adapter import router as n8n_router
 from agent_templates import seed_agent_templates
 from channel_registry import get_channel_registry
 from ledger_router import get_ledger_router
+from file_routes import router as file_router  # Import file routes
 from design_providers import (
     router as design_router,
     initialize_design_service,
@@ -154,6 +155,7 @@ app.include_router(realtime_router)
 app.include_router(metrics_router)
 app.include_router(dlq_router)
 app.include_router(lifecycle_router)
+app.include_router(file_router, prefix="/api/v1")
 
 # CORS for frontend
 app.add_middleware(

@@ -69,3 +69,26 @@ export function FormTextarea({ label, value, onChange, placeholder, rows = 4, re
     </div>
   );
 }
+
+export function FormCheckbox({ label, checked, onChange, required, error }) {
+  return (
+    <div className="space-y-2">
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          required={required}
+          className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500/50"
+        />
+        <span className="text-sm text-white/70">
+          {label}
+          {required && <span className="text-red-400 ml-1">*</span>}
+        </span>
+      </label>
+      {error && (
+        <p className="text-red-400 text-sm ml-7">{error}</p>
+      )}
+    </div>
+  );
+}
