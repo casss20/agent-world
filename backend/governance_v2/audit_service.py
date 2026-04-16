@@ -5,11 +5,18 @@ Database operations for audit logging
 
 import os
 import json
-import asyncpg
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from contextvars import ContextVar
 from .audit_models import AuditLogEntry, AuditLogQuery, AuditLogStats, ActorType, ActionType, ResultType
+
+# Optional asyncpg import
+try:
+    import asyncpg
+    ASYNCPG_AVAILABLE = True
+except ImportError:
+    ASYNCPG_AVAILABLE = False
+    asyncpg = None
 
 # Database URL from environment
 DATABASE_URL = os.getenv(
@@ -336,7 +343,7 @@ class AuditLogService:
                 for entry in entries:
                     writer.writerow(entry.dict())
     
-    def _row_to_entry(self, row: asyncpg.Record) -> AuditLogEntry:
+    def _row_to_entry(self, row) -> AuditLogEntry:
         """Convert database row to AuditLogEntry"""
         from .audit_models import DecisionType
         return AuditLogEntry(

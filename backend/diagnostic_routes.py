@@ -12,9 +12,29 @@ from pydantic import BaseModel, Field
 from business_models import (
     registry, BusinessContext, ResourceConstraints, BusinessStage
 )
-from governance_v2.auth import get_current_user, require_role
+from governance_v2.auth import get_current_user, require_roles
+from governance_v2 import EventType, GovernanceEvent
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
+
+# Governance system reference (set by main.py)
+governance_system_instance = None
+
+def set_governance_system(gs):
+    global governance_system_instance
+    governance_system_instance = gs
+
+def get_event_stream():
+    """Get event stream from governance system if available"""
+    if governance_system_instance:
+        return governance_system_instance.event_stream
+    return None
+
+def get_tracer():
+    """Get tracer from governance system if available"""
+    if governance_system_instance:
+        return governance_system_instance.tracer
+    return None
 
 
 # ── Request/Response Models ─────────────────────────────────────── #
@@ -115,6 +135,28 @@ async def submit_business_intake(
         "created_at": datetime.utcnow()
     }
     
+    # Emit to Ledger EventStream (audit trail)
+    event_stream = get_event_stream()
+    if event_stream:
+        await event_stream.emit(GovernanceEvent(
+            event_id=GovernanceEvent.generate_id(),
+            trace_id=get_tracer().start_trace() if get_tracer() else None,
+            timestamp=datetime.utcnow(),
+            event_type=EventType.DECISION,
+            agent_id="system",
+            business_id=current_user.tenant_id or 0,
+            action="business_intake",
+            resource=f"business:{business_id}",
+            risk_level="safe",
+            decision="recorded",
+            reasoning=f"Intake recorded for {model.display_name}",
+            metadata={
+                "business_model": request.business_model,
+                "stage": request.stage,
+                "goals": request.goals
+            }
+        ))
+    
     return {
         "business_id": business_id,
         "message": f"Intake recorded for {model.display_name}",
@@ -159,10 +201,34 @@ async def run_diagnosis(
         raise HTTPException(status_code=500, detail="Business model not found")
     
     # Run diagnosis
+    trace_id = get_tracer().start_trace() if get_tracer() else None
+    start_time = datetime.utcnow()
+    
     try:
         diagnosis = await model.diagnose(context)
     except Exception as e:
+        # Emit failure event
+        event_stream = get_event_stream()
+        if event_stream:
+            await event_stream.emit(GovernanceEvent(
+                event_id=GovernanceEvent.generate_id(),
+                trace_id=trace_id,
+                timestamp=datetime.utcnow(),
+                event_type=EventType.FAILURE,
+                agent_id="nova",
+                business_id=current_user.tenant_id or 0,
+                action="diagnose",
+                resource=f"business:{business_id}",
+                risk_level="medium",
+                decision="failed",
+                reasoning=str(e),
+                latency_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000),
+                metadata={"error": str(e)}
+            ))
         raise HTTPException(status_code=500, detail=f"Diagnosis failed: {str(e)}")
+    
+    # Calculate latency
+    latency_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
     
     # Store result
     diagnosis_id = f"diag_{business_id}"
@@ -173,6 +239,31 @@ async def run_diagnosis(
         "tenant_id": current_user.tenant_id,
         "created_at": datetime.utcnow()
     }
+    
+    # Emit success event to Ledger
+    event_stream = get_event_stream()
+    if event_stream:
+        await event_stream.emit(GovernanceEvent(
+            event_id=GovernanceEvent.generate_id(),
+            trace_id=trace_id,
+            timestamp=datetime.utcnow(),
+            event_type=EventType.ACTION,
+            agent_id="nova",
+            business_id=current_user.tenant_id or 0,
+            action="diagnose",
+            resource=f"business:{business_id}",
+            risk_level="safe",
+            decision="completed",
+            reasoning=f"Health score: {diagnosis.health_score:.1%}, Primary: {diagnosis.primary_bottleneck.category.value if diagnosis.primary_bottleneck else 'none'}",
+            latency_ms=latency_ms,
+            metadata={
+                "health_score": diagnosis.health_score,
+                "primary_bottleneck": diagnosis.primary_bottleneck.category.value if diagnosis.primary_bottleneck else None,
+                "severity": diagnosis.primary_bottleneck.severity.value if diagnosis.primary_bottleneck else None
+            }
+        ))
+        if get_tracer():
+            get_tracer().end_trace()
     
     # Format response
     return DiagnosisResponse(
@@ -287,6 +378,28 @@ async def generate_strategy(
     # Format response
     strategy_id = f"strat_{diagnosis_id}"
     
+    # Emit strategy generation event
+    event_stream = get_event_stream()
+    if event_stream:
+        await event_stream.emit(GovernanceEvent(
+            event_id=GovernanceEvent.generate_id(),
+            timestamp=datetime.utcnow(),
+            event_type=EventType.ACTION,
+            agent_id="forge",
+            business_id=current_user.tenant_id or 0,
+            action="generate_strategy",
+            resource=f"diagnosis:{diagnosis_id}",
+            risk_level="medium",
+            decision="completed",
+            reasoning=f"Generated strategy: {recommendation.primary_strategy.name if recommendation.primary_strategy else 'none'}",
+            metadata={
+                "strategy_id": strategy_id,
+                "primary_strategy": recommendation.primary_strategy.name if recommendation.primary_strategy else None,
+                "effort_hours": recommendation.primary_strategy.effort_hours if recommendation.primary_strategy else 0,
+                "budget_required": recommendation.primary_strategy.budget_required if recommendation.primary_strategy else 0
+            }
+        ))
+    
     return StrategyResponse(
         strategy_id=strategy_id,
         primary_strategy={
@@ -316,7 +429,7 @@ async def generate_strategy(
 @router.post("/{diagnosis_id}/approve")
 async def approve_strategy(
     diagnosis_id: str,
-    current_user = Depends(require_role(["operator", "governor", "admin"]))
+    current_user = Depends(require_roles(["operator", "governor", "admin"]))
 ):
     """
     Approve a strategy for execution.
@@ -336,10 +449,103 @@ async def approve_strategy(
     stored["approved_by"] = current_user.id
     stored["approved_at"] = datetime.utcnow()
     
+    # Get strategy info for event
+    primary_strategy = "unknown"
+    if stored.get("diagnosis") and stored["diagnosis"].primary_bottleneck:
+        primary_strategy = stored["diagnosis"].primary_bottleneck.category.value
+    
+    # Emit approval event to Ledger
+    event_stream = get_event_stream()
+    if event_stream:
+        await event_stream.emit(GovernanceEvent(
+            event_id=GovernanceEvent.generate_id(),
+            timestamp=datetime.utcnow(),
+            event_type=EventType.APPROVAL,
+            agent_id=current_user.id,
+            business_id=current_user.tenant_id or 0,
+            action="approve_strategy",
+            resource=f"diagnosis:{diagnosis_id}",
+            risk_level="critical",  # Approvals are critical events
+            decision="approved",
+            reasoning=f"Strategy approved by {current_user.role if hasattr(current_user, 'role') else 'operator'} for execution",
+            metadata={
+                "diagnosis_id": diagnosis_id,
+                "approved_by": current_user.id,
+                "primary_strategy": primary_strategy,
+                "role": current_user.role if hasattr(current_user, 'role') else 'operator'
+            }
+        ))
+    
     return {
         "diagnosis_id": diagnosis_id,
         "status": "approved",
         "approved_by": current_user.id,
         "approved_at": stored["approved_at"],
         "next_step": "Strategies can now be executed through Channel Registry"
+    }
+
+
+@router.get("/{diagnosis_id}/events")
+async def get_diagnostic_events(
+    diagnosis_id: str,
+    limit: int = 50,
+    current_user = Depends(get_current_user)
+):
+    """
+    Get audit events for a specific diagnosis.
+    
+    Queries the Ledger EventStream for all events related to this diagnosis:
+    - intake events
+    - diagnosis run events
+    - strategy generation events
+    - approval events
+    """
+    stored = _diagnosis_store.get(diagnosis_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Diagnosis not found")
+    
+    if stored["tenant_id"] != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    event_stream = get_event_stream()
+    if not event_stream:
+        return {
+            "diagnosis_id": diagnosis_id,
+            "events": [],
+            "note": "EventStream not available - audit trail disabled"
+        }
+    
+    # Query events related to this diagnosis
+    # Note: This is a simplified query - in production you'd filter by resource pattern
+    all_events = event_stream.query(
+        business_id=current_user.tenant_id,
+        limit=limit * 2  # Get more and filter
+    )
+    
+    # Filter to events related to this diagnosis
+    prefix = f"diagnosis:{diagnosis_id}"
+    related_events = [
+        e for e in all_events
+        if e.resource.startswith(prefix) or 
+           (e.metadata and e.metadata.get("diagnosis_id") == diagnosis_id)
+    ]
+    
+    return {
+        "diagnosis_id": diagnosis_id,
+        "event_count": len(related_events),
+        "events": [
+            {
+                "event_id": e.event_id,
+                "timestamp": e.timestamp.isoformat(),
+                "type": e.event_type.value,
+                "agent_id": e.agent_id,
+                "action": e.action,
+                "resource": e.resource,
+                "decision": e.decision,
+                "reasoning": e.reasoning,
+                "risk_level": e.risk_level,
+                "latency_ms": e.latency_ms
+            }
+            for e in related_events[:limit]
+        ]
     }

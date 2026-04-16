@@ -42,7 +42,14 @@ from .phase4_hardening import (
     EmergencyKillSwitch
 )
 
-from .audit_service import AuditLogService, get_audit_service
+# Optional audit service (requires asyncpg)
+try:
+    from .audit_service import AuditLogService, get_audit_service
+    AUDIT_SERVICE_AVAILABLE = True
+except ImportError:
+    AUDIT_SERVICE_AVAILABLE = False
+    AuditLogService = None
+    get_audit_service = None
 
 # Integration class that ties everything together
 class LedgerGovernanceSystem:

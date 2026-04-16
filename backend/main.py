@@ -27,7 +27,7 @@ from retry_controller import router as dlq_router
 from lifecycle_manager import lifecycle_router
 from spawn_routes import router as spawn_router, on_startup as spawn_on_startup
 from channel_routes import router as channel_router
-from diagnostic_routes import router as diagnostic_router
+from diagnostic_routes import router as diagnostic_router, set_governance_system as set_diagnostic_governance
 from agent_templates import seed_agent_templates
 from channel_registry import get_channel_registry
 from ledger_router import get_ledger_router
@@ -71,6 +71,7 @@ async def startup_event():
     governance_system = LedgerGovernanceSystem(ledger_sovereign=None)
     set_governance_system(governance_system)
     set_health_governance(governance_system)
+    set_diagnostic_governance(governance_system)  # Wire diagnostics to Ledger
     await governance_system.start()
     print("✅ Ledger 2.0 Governance System initialized")
 
