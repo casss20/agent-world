@@ -11,7 +11,7 @@ import json
 import io
 import csv
 
-from .auth import require_admin, require_viewer, UserPrincipal
+from security_middleware import require_admin, require_viewer, TokenPayload
 from .audit_models import AuditLogEntry, AuditLogQuery, ActorType, ActionType, DecisionType
 from .audit_service import get_audit_service, AuditLogService
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/governance/v2/audit", tags=["audit"])
 @router.get("/logs", response_model=List[AuditLogEntry])
 async def get_audit_logs(
     request: Request,
-    user: UserPrincipal = Depends(require_viewer),
+    user: TokenPayload = Depends(require_viewer()),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     actor_type: Optional[ActorType] = None,
@@ -66,7 +66,7 @@ async def get_audit_logs(
 
 @router.get("/integrity")
 async def verify_audit_integrity(
-    user: UserPrincipal = Depends(require_admin),
+    user: TokenPayload = Depends(require_admin()),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
     """
@@ -87,7 +87,7 @@ async def verify_audit_integrity(
 @router.get("/events/{event_id}")
 async def get_event_by_id(
     event_id: str,
-    user: UserPrincipal = Depends(require_viewer),
+    user: TokenPayload = Depends(require_viewer()),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
     """
@@ -107,7 +107,7 @@ async def get_event_by_id(
 
 @router.get("/stats")
 async def get_audit_stats(
-    user: UserPrincipal = Depends(require_viewer),
+    user: TokenPayload = Depends(require_viewer()),
     days: int = Query(30, ge=1, le=90),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
@@ -133,7 +133,7 @@ async def get_audit_stats(
 
 @router.get("/actions")
 async def get_action_types(
-    user: UserPrincipal = Depends(require_viewer)
+    user: TokenPayload = Depends(require_viewer())
 ):
     """
     Get list of available action types for filtering.
@@ -156,7 +156,7 @@ async def get_action_types(
 @router.get("/export/json")
 async def export_audit_logs_json(
     request: Request,
-    user: UserPrincipal = Depends(require_admin),
+    user: TokenPayload = Depends(require_admin()),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     actor_type: Optional[ActorType] = None,
@@ -200,7 +200,7 @@ async def export_audit_logs_json(
 @router.get("/export/csv")
 async def export_audit_logs_csv(
     request: Request,
-    user: UserPrincipal = Depends(require_admin),
+    user: TokenPayload = Depends(require_admin()),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     actor_type: Optional[ActorType] = None,
@@ -259,7 +259,7 @@ async def export_audit_logs_csv(
 async def query_audit_logs_post(
     request: Request,
     query: AuditLogQuery,
-    user: UserPrincipal = Depends(require_viewer),
+    user: TokenPayload = Depends(require_viewer()),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
     """
@@ -273,7 +273,7 @@ async def query_audit_logs_post(
 
 @router.get("/dashboard")
 async def get_audit_dashboard(
-    user: UserPrincipal = Depends(require_viewer),
+    user: TokenPayload = Depends(require_viewer()),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
     """

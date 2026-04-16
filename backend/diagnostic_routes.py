@@ -12,7 +12,12 @@ from pydantic import BaseModel, Field
 from business_models import (
     registry, BusinessContext, ResourceConstraints, BusinessStage
 )
-from governance_v2.auth import get_current_user, require_roles
+from security_middleware import (
+    get_current_user, 
+    require_admin, 
+    require_governor,
+    TokenPayload
+)
 from governance_v2 import EventType, GovernanceEvent
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
@@ -93,7 +98,7 @@ _diagnosis_store: Dict[str, Dict[str, Any]] = {}
 @router.post("/intake", response_model=Dict[str, str])
 async def submit_business_intake(
     request: BusinessIntakeRequest,
-    current_user = Depends(get_current_user)
+    current_user: TokenPayload = Depends(get_current_user)
 ):
     """
     Submit initial business context for diagnosis.
@@ -110,7 +115,8 @@ async def submit_business_intake(
         )
     
     # Create business context
-    business_id = f"biz_{current_user.tenant_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    tenant_id = current_user.business_id or "default"
+    business_id = f"biz_{tenant_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     
     context = BusinessContext(
         business_model=request.business_model,
@@ -130,8 +136,8 @@ async def submit_business_intake(
     # Store (replace with DB in production)
     _intake_store[business_id] = {
         "context": context,
-        "user_id": current_user.id,
-        "tenant_id": current_user.tenant_id,
+        "user_id": current_user.sub,
+        "tenant_id": tenant_id,
         "created_at": datetime.utcnow()
     }
     
@@ -144,7 +150,7 @@ async def submit_business_intake(
             timestamp=datetime.utcnow(),
             event_type=EventType.DECISION,
             agent_id="system",
-            business_id=current_user.tenant_id or 0,
+            business_id=current_user.business_id or 0,
             action="business_intake",
             resource=f"business:{business_id}",
             risk_level="safe",
@@ -190,7 +196,7 @@ async def run_diagnosis(
         raise HTTPException(status_code=404, detail="Business ID not found")
     
     # Verify ownership
-    if intake["tenant_id"] != current_user.tenant_id:
+    if intake["tenant_id"] != current_user.business_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     context = intake["context"]
@@ -216,7 +222,7 @@ async def run_diagnosis(
                 timestamp=datetime.utcnow(),
                 event_type=EventType.FAILURE,
                 agent_id="nova",
-                business_id=current_user.tenant_id or 0,
+                business_id=current_user.business_id or 0,
                 action="diagnose",
                 resource=f"business:{business_id}",
                 risk_level="medium",
@@ -235,8 +241,8 @@ async def run_diagnosis(
     _diagnosis_store[diagnosis_id] = {
         "diagnosis": diagnosis,
         "business_id": business_id,
-        "user_id": current_user.id,
-        "tenant_id": current_user.tenant_id,
+        "user_id": current_user.sub,
+        "tenant_id": current_user.business_id,
         "created_at": datetime.utcnow()
     }
     
@@ -249,7 +255,7 @@ async def run_diagnosis(
             timestamp=datetime.utcnow(),
             event_type=EventType.ACTION,
             agent_id="nova",
-            business_id=current_user.tenant_id or 0,
+            business_id=current_user.business_id or 0,
             action="diagnose",
             resource=f"business:{business_id}",
             risk_level="safe",
@@ -299,7 +305,7 @@ async def get_diagnosis(
     if not stored:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     
-    if stored["tenant_id"] != current_user.tenant_id:
+    if stored["tenant_id"] != current_user.business_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     diagnosis = stored["diagnosis"]
@@ -352,7 +358,7 @@ async def generate_strategy(
     if not stored:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     
-    if stored["tenant_id"] != current_user.tenant_id:
+    if stored["tenant_id"] != current_user.business_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     diagnosis = stored["diagnosis"]
@@ -386,7 +392,7 @@ async def generate_strategy(
             timestamp=datetime.utcnow(),
             event_type=EventType.ACTION,
             agent_id="forge",
-            business_id=current_user.tenant_id or 0,
+            business_id=current_user.business_id or 0,
             action="generate_strategy",
             resource=f"diagnosis:{diagnosis_id}",
             risk_level="medium",
@@ -441,12 +447,12 @@ async def approve_strategy(
     if not stored:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     
-    if stored["tenant_id"] != current_user.tenant_id:
+    if stored["tenant_id"] != current_user.business_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Mark as approved
     stored["approved"] = True
-    stored["approved_by"] = current_user.id
+    stored["approved_by"] = current_user.sub
     stored["approved_at"] = datetime.utcnow()
     
     # Get strategy info for event
@@ -461,8 +467,8 @@ async def approve_strategy(
             event_id=GovernanceEvent.generate_id(),
             timestamp=datetime.utcnow(),
             event_type=EventType.APPROVAL,
-            agent_id=current_user.id,
-            business_id=current_user.tenant_id or 0,
+            agent_id=current_user.sub,
+            business_id=current_user.business_id or 0,
             action="approve_strategy",
             resource=f"diagnosis:{diagnosis_id}",
             risk_level="critical",  # Approvals are critical events
@@ -470,7 +476,7 @@ async def approve_strategy(
             reasoning=f"Strategy approved by {current_user.role if hasattr(current_user, 'role') else 'operator'} for execution",
             metadata={
                 "diagnosis_id": diagnosis_id,
-                "approved_by": current_user.id,
+                "approved_by": current_user.sub,
                 "primary_strategy": primary_strategy,
                 "role": current_user.role if hasattr(current_user, 'role') else 'operator'
             }
@@ -479,7 +485,7 @@ async def approve_strategy(
     return {
         "diagnosis_id": diagnosis_id,
         "status": "approved",
-        "approved_by": current_user.id,
+        "approved_by": current_user.sub,
         "approved_at": stored["approved_at"],
         "next_step": "Strategies can now be executed through Channel Registry"
     }
@@ -504,7 +510,7 @@ async def get_diagnostic_events(
     if not stored:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     
-    if stored["tenant_id"] != current_user.tenant_id:
+    if stored["tenant_id"] != current_user.business_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     event_stream = get_event_stream()
@@ -518,7 +524,7 @@ async def get_diagnostic_events(
     # Query events related to this diagnosis
     # Note: This is a simplified query - in production you'd filter by resource pattern
     all_events = event_stream.query(
-        business_id=current_user.tenant_id,
+        business_id=current_user.business_id,
         limit=limit * 2  # Get more and filter
     )
     
@@ -562,7 +568,7 @@ async def accept_strategy(
     if not stored:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     
-    if stored["tenant_id"] != current_user.tenant_id:
+    if stored["tenant_id"] != current_user.business_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     strategy = _strategy_store.get(diagnosis_id)
@@ -590,7 +596,7 @@ async def accept_strategy(
             decision=f"Strategy '{strategy.primary_strategy.name}' accepted",
             reasoning=f"Accepted by {request.get('first_name', 'Unknown')}",
             risk_level=RiskLevel.LOW,
-            business_id=current_user.tenant_id,
+            business_id=current_user.business_id,
             latency_ms=0,
             metadata={
                 "diagnosis_id": diagnosis_id,

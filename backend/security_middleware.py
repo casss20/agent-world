@@ -3,11 +3,13 @@ Security Middleware for Agent World Governance API
 FastAPI authentication, authorization, audit logging, and rate limiting
 """
 
+import os
 import time
 import uuid
 import hashlib
 import hmac
 import json
+import bcrypt
 from typing import Optional, List, Dict, Any, Callable
 from datetime import datetime, timedelta
 from functools import wraps
@@ -24,10 +26,24 @@ from pydantic import BaseModel
 # ============================================================================
 
 class SecurityConfig:
-    """Security configuration - load from environment in production"""
-    JWT_SECRET = "10081ae4407de3819f9833e241885e3d6b0edabc85a9c897db8cb20cd98f44b8"  # CHANGE IN PRODUCTION
+    """Security configuration - loaded from environment"""
+    
+    # JWT Secret - MUST be set in production
+    JWT_SECRET = os.getenv("JWT_SECRET")
     JWT_ALGORITHM = "HS256"
     JWT_EXPIRY_HOURS = 24
+    
+    # Validate JWT_SECRET is set in production
+    @classmethod
+    def validate(cls):
+        env = os.getenv("ENV", "development")
+        if env == "production" and not cls.JWT_SECRET:
+            raise RuntimeError("JWT_SECRET environment variable must be set in production")
+        # In dev, provide a warning if using default
+        if env != "production" and not cls.JWT_SECRET:
+            import warnings
+            warnings.warn("JWT_SECRET not set - using insecure default for development only!")
+            cls.JWT_SECRET = "dev-secret-change-in-production-" + os.urandom(16).hex()
     
     # Rate limiting
     RATE_LIMIT_PUBLIC = 1000  # requests per hour
@@ -37,11 +53,43 @@ class SecurityConfig:
     RATE_LIMIT_ADMIN = 10     # per hour
     
     # Audit log
-    AUDIT_LOG_PATH = "logs/audit.log"
+    AUDIT_LOG_PATH = os.getenv("AUDIT_LOG_PATH", "logs/audit.log")
+    
+    # Admin credentials - bcrypt hashed password from env
+    ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
     
     # mTLS for service-to-service
-    MTLS_ENABLED = False
+    MTLS_ENABLED = os.getenv("MTLS_ENABLED", "false").lower() == "true"
     MTLS_HEADER = "X-Client-Cert"
+
+
+# ============================================================================
+# PASSWORD AUTHENTICATION
+# ============================================================================
+
+class CredentialManager:
+    """Manages bcrypt-hashed credentials from environment"""
+    
+    @staticmethod
+    def verify_admin_password(password: str) -> bool:
+        """Verify admin password against bcrypt hash from env"""
+        stored_hash = SecurityConfig.ADMIN_PASSWORD_HASH
+        if not stored_hash:
+            return False
+        try:
+            return bcrypt.checkpw(password.encode(), stored_hash.encode())
+        except Exception:
+            return False
+    
+    @staticmethod
+    def hash_password(password: str) -> str:
+        """Generate bcrypt hash for a password (for setup/CLI use)"""
+        salt = bcrypt.gensalt(rounds=12)
+        return bcrypt.hashpw(password.encode(), salt).decode()
+
+
+# Validate config on module load
+SecurityConfig.validate()
 
 
 # ============================================================================
