@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../shared/Button';
-import { FormInput, FormSelect, FormTextarea } from '../shared/FormComponents';
-import { useApi } from '../../hooks/useApi';
+import { Button } from '../components/shared/Button';
+import { FormInput, FormSelect, FormTextarea } from '../components/shared/FormComponents';
+import { useApi } from '../hooks/useApi';
 
 const BUSINESS_MODELS = [
   { id: 'etsy_pod', name: 'Etsy Print-on-Demand', icon: '🏪' },

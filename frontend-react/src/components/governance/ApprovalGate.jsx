@@ -339,12 +339,4 @@ export function RiskBadge({ level }) {
   );
 }
 
-// Export all components
-export {
-  GateIndicator,
-  GovernanceContext,
-  GovernanceProvider,
-  useGovernance
-};
-
 export default ApprovalGate;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '../shared/Button';
 import { useApi } from '../../hooks/useApi';
 
@@ -83,7 +83,7 @@ export function AssetLibrary({ businessId }) {
     }
   ];
 
-  React.useEffect(() => {
+  useEffect(() => {
     // TODO: Load from API
     setAssets(mockAssets);
   }, [businessId]);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../shared/Button';
 import { useApi } from '../../hooks/useApi';
 
@@ -87,7 +87,7 @@ export function HumanTaskQueue({ businessId }) {
     }
   ];
 
-  React.useEffect(() => {
+  useEffect(() => {
     setTasks(mockTasks);
   }, [businessId]);
 

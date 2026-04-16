@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ProposalCard } from '../components/proposals/ProposalCard';
 import { Button } from '../components/shared/Button';
-import { useApi } from '../../hooks/useApi';
+import { useApi } from '../hooks/useApi';
 
 export function StrategyRecommendation() {
   const { diagnosisId } = useParams();

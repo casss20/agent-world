@@ -19,6 +19,9 @@ export {
   CreateBusinessModal 
 } from './setup';
 
+// Audit components
+export { AuditLogViewer } from './audit/AuditLogViewer';
+
 // Revenue components
 export { RevenueWidget } from './revenue';
 

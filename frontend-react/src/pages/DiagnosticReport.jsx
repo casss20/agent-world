@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '../shared/Button';
-import { useApi } from '../../hooks/useApi';
+import { Button } from '../components/shared/Button';
+import { useApi } from '../hooks/useApi';
 
 const SEVERITY_COLORS = {
   critical: 'bg-red-500/20 border-red-500/30 text-red-300',
