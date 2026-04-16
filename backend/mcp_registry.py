@@ -9,6 +9,7 @@ Each tool has:
   - fn:      async callable that executes the tool
 """
 
+import logging
 from typing import Dict, Optional, Callable, Any
 
 _REGISTRY: Dict[str, Dict] = {}
@@ -61,6 +62,11 @@ def _load_builtin_tools():
     from tools.file_tool   import read_file, write_file
     from tools.memory_tool import save_memory, load_memory
     from tools.room_tool   import broadcast_to_room
+    
+    # Import and register new agent tools
+    from tools.merchant_tools import register_merchant_tools
+    from tools.promoter_tools import register_promoter_tools
+    from tools.growth_tools import register_growth_tools
 
     register_tool(
         name="web_search",
@@ -162,6 +168,14 @@ def _load_builtin_tools():
         },
         fn=broadcast_to_room,
     )
+    
+    # Register Merchant, Promoter, and Growth agent tools
+    register_merchant_tools()
+    register_promoter_tools()
+    register_growth_tools()
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"[MCP Registry] Loaded {len(_REGISTRY)} tools total")
 
 
 _load_builtin_tools()
