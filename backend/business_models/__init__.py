@@ -1,5 +1,5 @@
 """
-business_models — Agent World
+business_models - Agent World
 
 Business-specific diagnostic and strategy logic.
 """
@@ -25,14 +25,16 @@ from .base import (
 
 from .etsy_pod import EtsyPODModel
 from .tiktok_ugc import TikTokUGCModel
+from .youtube_faceless import YouTubeFacelessModel
 
 # Register available models
 registry.register(EtsyPODModel())
 registry.register(TikTokUGCModel())
+registry.register(YouTubeFacelessModel())
 
 __all__ = [
     "BusinessModel",
-    "BusinessModelRegistry", 
+    "BusinessModelRegistry",
     "DiagnosticCheck",
     "BusinessContext",
     "ResourceConstraints",
@@ -48,5 +50,6 @@ __all__ = [
     "BusinessStage",
     "EtsyPODModel",
     "TikTokUGCModel",
+    "YouTubeFacelessModel",
     "registry"
 ]
