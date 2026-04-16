@@ -17,50 +17,50 @@
     <section class="stats-grid">
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-icon">💰</span>
+          <span class="stat-icon stat-icon--green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </span>
           <span class="badge badge-green">+12%</span>
         </div>
-        <div class="stat-value-large">{{ formatMoney(stats.total_actual_revenue) }}</div>
+        <div class="stat-value-large stat-value--green">{{ formatMoney(stats.total_actual_revenue) }}</div>
         <div class="stat-label-large">Total Revenue</div>
-        <div class="stat-footer">
-          Est: {{ formatMoney(stats.total_estimated_revenue) }}
-        </div>
+        <div class="stat-footer">Est: {{ formatMoney(stats.total_estimated_revenue) }}</div>
       </div>
 
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-icon">📝</span>
+          <span class="stat-icon stat-icon--cyan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </span>
           <span class="badge badge-cyan">+5</span>
         </div>
-        <div class="stat-value-large">{{ stats.total_content_published }}</div>
+        <div class="stat-value-large stat-value--cyan">{{ stats.total_content_published }}</div>
         <div class="stat-label-large">Content Published</div>
-        <div class="stat-footer">
-          {{ activeWorkflows }} active workflows
-        </div>
+        <div class="stat-footer">{{ activeWorkflows }} active workflows</div>
       </div>
 
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-icon">🎯</span>
-          <span class="badge badge-purple">{{ avgScore }}</span>
+          <span class="stat-icon stat-icon--cyan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+          <span class="badge badge-cyan">{{ avgScore }}</span>
         </div>
-        <div class="stat-value-large">{{ conversionRate }}%</div>
+        <div class="stat-value-large stat-value--cyan">{{ conversionRate }}%</div>
         <div class="stat-label-large">Conversion Rate</div>
-        <div class="stat-footer">
-          Avg score: {{ stats.avg_opportunity_score }}/10
-        </div>
+        <div class="stat-footer">Avg score: {{ stats.avg_opportunity_score }}/10</div>
       </div>
 
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-icon">📈</span>
+          <span class="stat-icon stat-icon--pink">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          </span>
           <span class="badge badge-pink">ROI</span>
         </div>
-        <div class="stat-value-large">{{ roi }}%</div>
+        <div class="stat-value-large stat-value--pink">{{ roi }}%</div>
         <div class="stat-label-large">ROI</div>
-        <div class="stat-footer">
-          Profit: {{ formatMoney(stats.total_profit) }}
-        </div>
+        <div class="stat-footer">Profit: {{ formatMoney(stats.total_profit) }}</div>
       </div>
     </section>
 
@@ -231,11 +231,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ── Layout ─────────────────────────────────────────────────────── */
 .dashboard {
   max-width: 1400px;
   margin: 0 auto;
+  padding: 2rem 2rem 4rem;
 }
 
+/* ── Header ──────────────────────────────────────────────────────── */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -243,35 +246,57 @@ onMounted(async () => {
   margin-bottom: 2rem;
 }
 
+.dashboard-header h1 {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.5rem;
+  color: #00f3ff;
+  text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
 .subtitle {
-  color: var(--text-secondary);
-  margin: 0.25rem 0 0;
+  color: #7fb3d5;
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
+.header-actions { display: flex; gap: 1rem; }
 
-/* Stats Grid */
+/* ── Stats Grid ──────────────────────────────────────────────────── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
 .stat-card {
-  background: var(--cyber-dark);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  background: rgba(10, 22, 40, 0.95);
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.4), transparent);
 }
 
 .stat-card:hover {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 4px 20px rgba(0, 243, 255, 0.1);
+  border-color: #00f3ff;
+  box-shadow: 0 4px 30px rgba(0, 243, 255, 0.12), 0 0 0 1px rgba(0, 243, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 .stat-header {
@@ -281,41 +306,50 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
+/* Stat Icons */
 .stat-icon {
-  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.stat-icon--cyan { color: #00f3ff; background: rgba(0, 243, 255, 0.1); }
+.stat-icon--pink { color: #ff006e; background: rgba(255, 0, 110, 0.1); }
+.stat-icon--green { color: #39ff14; background: rgba(57, 255, 20, 0.08); }
+
+/* Stat Values */
 .stat-value-large {
-  font-size: 2rem;
+  font-size: 1.9rem;
   font-weight: 700;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Orbitron', monospace;
+  line-height: 1;
+  margin-bottom: 0.3rem;
 }
 
-.stat-value-large[style*="revenue"],
-.stat-card:first-child .stat-value-large {
-  color: var(--neon-green);
-  text-shadow: var(--glow-green);
-}
+.stat-value--cyan  { color: #00f3ff; text-shadow: 0 0 12px rgba(0, 243, 255, 0.5); }
+.stat-value--pink  { color: #ff006e; text-shadow: 0 0 12px rgba(255, 0, 110, 0.5); }
+.stat-value--green { color: #39ff14; text-shadow: 0 0 12px rgba(57, 255, 20, 0.4); }
 
 .stat-label-large {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
+  color: #7fb3d5;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
 }
 
 .stat-footer {
-  color: var(--text-muted);
-  font-size: 0.75rem;
+  color: #475569;
+  font-size: 0.72rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid rgba(0, 243, 255, 0.1);
 }
 
-/* Sections */
-.dashboard-section {
-  margin-bottom: 2rem;
-}
+/* ── Sections ────────────────────────────────────────────────────── */
+.dashboard-section { margin-bottom: 2rem; }
 
 .section-header {
   display: flex;
@@ -325,16 +359,25 @@ onMounted(async () => {
 }
 
 .section-header h2 {
-  font-size: 1.25rem;
-  color: var(--text-primary);
+  font-family: 'Orbitron', monospace;
+  font-size: 0.85rem;
+  color: #7fb3d5;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .view-all {
-  color: var(--neon-cyan);
-  font-size: 0.875rem;
+  color: #00f3ff;
+  font-size: 0.8rem;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: text-shadow 0.2s;
 }
 
-/* Platform Grid */
+.view-all:hover { text-shadow: 0 0 12px rgba(0, 243, 255, 0.7); }
+
+/* ── Platform Grid ───────────────────────────────────────────────── */
 .platform-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -345,83 +388,79 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: var(--cyber-dark);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  background: rgba(10, 22, 40, 0.95);
+  border: 1px solid rgba(0, 243, 255, 0.15);
+  border-radius: 8px;
   padding: 1rem;
+  transition: all 0.25s ease;
+}
+
+.platform-card:hover {
+  border-color: rgba(0, 243, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.08);
 }
 
 .platform-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  background: var(--cyber-gray);
-}
-
-.platform-info {
-  flex: 1;
+  font-size: 1.3rem;
+  background: rgba(0, 243, 255, 0.08);
+  border: 1px solid rgba(0, 243, 255, 0.15);
 }
 
 .platform-name {
   font-weight: 600;
+  font-size: 0.9rem;
   text-transform: capitalize;
-  color: var(--text-primary);
+  color: #e0e1dd;
 }
 
 .platform-stats {
   display: flex;
   justify-content: space-between;
   margin-top: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 0.8rem;
+  color: #7fb3d5;
 }
 
 .platform-revenue {
-  color: var(--neon-green);
+  color: #39ff14;
   font-weight: 600;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
 }
 
-/* Content List */
-.content-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
+/* ── Content List ────────────────────────────────────────────────── */
+.content-list { display: flex; flex-direction: column; gap: 0.6rem; }
 
 .content-item {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: var(--cyber-dark);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1rem;
+  background: rgba(10, 22, 40, 0.8);
+  border: 1px solid rgba(0, 243, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
   transition: all 0.2s ease;
 }
 
 .content-item:hover {
-  border-color: var(--neon-cyan);
+  border-color: rgba(0, 243, 255, 0.35);
+  background: rgba(10, 22, 40, 0.95);
 }
 
-.content-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-}
+.content-status { width: 28px; display: flex; justify-content: center; }
 
-.content-info {
-  flex: 1;
-  min-width: 0;
-}
+.content-info { flex: 1; min-width: 0; }
 
 .content-title {
+  font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: #e0e1dd;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -432,113 +471,96 @@ onMounted(async () => {
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.25rem;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
-.meta-date,
-.meta-score {
-  color: var(--text-muted);
-}
+.meta-date, .meta-score { color: #475569; }
 
-.content-revenue {
-  text-align: right;
-}
+.content-revenue { text-align: right; }
 
 .revenue-actual {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--neon-green);
-  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #39ff14;
+  font-family: 'Orbitron', monospace;
+  text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
 }
 
-.revenue-est {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
+.revenue-est { font-size: 0.7rem; color: #475569; margin-top: 2px; }
 
-/* Leaderboard */
+/* ── Leaderboard ─────────────────────────────────────────────────── */
 .leaderboard {
-  background: var(--cyber-dark);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
+  background: rgba(10, 22, 40, 0.95);
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.5rem;
+  overflow: hidden;
 }
 
 .leader-item {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.875rem;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid rgba(0, 243, 255, 0.08);
+  transition: background 0.2s;
 }
 
-.leader-item:last-child {
-  border-bottom: none;
-}
+.leader-item:hover { background: rgba(0, 243, 255, 0.04); }
+.leader-item:last-child { border-bottom: none; }
 
 .leader-rank {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   font-weight: 700;
-  font-size: 0.875rem;
-  background: var(--cyber-gray);
-  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: 'Orbitron', monospace;
+  background: rgba(0, 243, 255, 0.08);
+  color: #7fb3d5;
+  border: 1px solid rgba(0, 243, 255, 0.15);
 }
 
 .leader-rank.top-3 {
-  background: var(--gradient-cyber);
-  color: var(--cyber-black);
+  background: linear-gradient(135deg, #00f3ff, #ff006e);
+  color: #050a14;
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
 }
 
-.leader-info {
-  flex: 1;
-  min-width: 0;
-}
+.leader-info { flex: 1; min-width: 0; }
 
 .leader-title {
+  font-size: 0.88rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: #e0e1dd;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.leader-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.125rem;
-}
+.leader-meta { font-size: 0.72rem; color: #475569; margin-top: 2px; }
 
 .leader-revenue {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--neon-green);
-  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #39ff14;
+  font-family: 'Orbitron', monospace;
+  text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
 }
 
-/* Responsive */
+/* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .dashboard-header {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .platform-grid {
-    grid-template-columns: 1fr;
-  }
+  .stats-grid { grid-template-columns: 1fr; }
+  .dashboard { padding: 1rem 1rem 3rem; }
+  .dashboard-header { flex-direction: column; gap: 1rem; }
+  .platform-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -93,7 +93,7 @@ onUnmounted(() => {
 <style scoped>
 .sidebar {
     width: 100%;
-    background-color: #1a1a1a;
+    background-color: rgba(10, 22, 40, 0.97);
     padding: 0 24px 0 0;
     box-sizing: border-box;
     display: flex;
@@ -102,8 +102,10 @@ onUnmounted(() => {
     position: sticky;
     top: 0;
     z-index: 100;
-    border-bottom: 1px solid #4d4d4d;
+    border-bottom: 1px solid rgba(0, 243, 255, 0.2);
     justify-content: center;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(0, 243, 255, 0.05);
     transition: margin-top 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     margin-top: 0;
     transform: translateY(0);
@@ -141,44 +143,42 @@ onUnmounted(() => {
 
 .sidebar-nav a {
     text-decoration: none;
-    color: #8e8e8e;
+    color: #7fb3d5;
     font-weight: 500;
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
-    transition: color 0.2s ease;
+    font-size: 13px;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: color 0.25s ease, text-shadow 0.25s ease;
 }
 
 .sidebar-nav a:hover {
-    color: #f2f2f2;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(0, 243, 255, 0.6);
 }
 
 .sidebar-nav a.router-link-active,
 .sidebar-nav a.active {
-    background: linear-gradient(
-    90deg,
-    #aaffcd,
-    #99eaf9,
-    #a0c4ff
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    -webkit-text-fill-color: transparent;
+    color: #00f3ff;
+    text-shadow: 0 0 16px rgba(0, 243, 255, 0.7);
+    -webkit-text-fill-color: unset;
 }
 
 .settings-nav-btn {
   background: transparent;
   border: none;
-  color: #8e8e8e;
+  color: #7fb3d5;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s ease;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+  border-radius: 4px;
 }
 
 .settings-nav-btn:hover {
-  color: #f2f2f2;
+  color: #00f3ff;
+  filter: drop-shadow(0 0 6px rgba(0, 243, 255, 0.6));
 }
 </style>
