@@ -67,6 +67,10 @@ def _load_builtin_tools():
     from tools.merchant_tools import register_merchant_tools
     from tools.promoter_tools import register_promoter_tools
     from tools.growth_tools import register_growth_tools
+    
+    # Import and register governed risk tools (Week 1)
+    from tools.risk_tools import register_risk_tools
+    register_risk_tools(register_tool)
 
     register_tool(
         name="web_search",
