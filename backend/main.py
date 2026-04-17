@@ -76,6 +76,11 @@ def get_governance_system():
 async def startup_event():
     global governance_system
 
+    # ── Ledger Governance ─────────────────────────────────────────────
+    from governance_init import start_governance, stop_governance
+    await start_governance()
+    print("✅ Ledger Governance System initialized")
+
     # ── Ledger 2.0 Governance System ──────────────────────────────────
     governance_system = LedgerGovernanceSystem(ledger_sovereign=None)
     set_governance_system(governance_system)
@@ -132,6 +137,12 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down Agent World")
+    
+    # ── Stop Ledger Governance ──────────────────────────────────────────
+    from governance_init import stop_governance
+    await stop_governance()
+    logger.info("Ledger Governance stopped")
+    
     if governance_system:
         governance_system.stop()
         logger.info("Ledger 2.0 Governance System stopped")
