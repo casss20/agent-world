@@ -983,18 +983,18 @@ const getSelectedLabel = () => {
   width: 18px;
   left: 2px;
   bottom: 2px;
-  background-color: white;
+  background-color: #e0e1dd;
   transition: .4s;
   border-radius: 50%;
 }
 
 input:checked + .switch-slider {
-  background-color: #a0c4ff;
-  border-color: #4facfe;
+  background-color: rgba(0, 243, 255, 0.25);
+  border-color: #00f3ff;
 }
 
 input:focus + .switch-slider {
-  box-shadow: 0 0 1px #4facfe;
+  box-shadow: 0 0 6px rgba(0, 243, 255, 0.5);
 }
 
 input:checked + .switch-slider:before {

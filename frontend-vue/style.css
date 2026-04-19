@@ -1,69 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;500;600&display=swap');
+
+/* ── Agent World Design Tokens ─────────────────────────────────── */
 :root {
-  scrollbar-gutter: auto;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --bg-primary:      #050a14;
+  --bg-surface:      rgba(10, 22, 40, 0.95);
+  --bg-elevated:     #0a1628;
+  --color-cyan:      #00f3ff;
+  --color-pink:      #ff006e;
+  --color-muted:     #7fb3d5;
+  --color-text:      #e0e1dd;
+  --color-subtext:   #64748b;
+  --border-subtle:   rgba(0, 243, 255, 0.2);
+  --border-active:   #00f3ff;
+  --font-display:    'Orbitron', monospace;
+  --font-body:       'Rajdhani', 'Segoe UI', sans-serif;
+  --glow-cyan:       0 0 20px rgba(0, 243, 255, 0.4);
+  --glow-pink:       0 0 20px rgba(255, 0, 110, 0.4);
+  --radius:          8px;
+  --transition:      0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset ─────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Base ──────────────────────────────────────────────────────── */
+html {
+  font-size: 16px;
   line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 400;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+/* ── Links ─────────────────────────────────────────────────────── */
+a {
   font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  color: var(--color-cyan);
+  text-decoration: inherit;
+  transition: color var(--transition);
+}
+
+a:hover {
+  color: #fff;
+  text-shadow: var(--glow-cyan);
+}
+
+/* ── Headings ──────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-cyan);
+  line-height: 1.2;
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.2rem; }
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+button {
+  border-radius: var(--radius);
+  border: 1px solid var(--color-cyan);
+  padding: 0.6em 1.4em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: transparent;
+  color: var(--color-cyan);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all var(--transition);
 }
 
-.card {
-  padding: 2em;
+button:hover {
+  background: var(--color-cyan);
+  color: var(--bg-primary);
+  box-shadow: var(--glow-cyan);
 }
 
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 243, 255, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 243, 255, 0.5);
+}
+
+/* ── App Shell ─────────────────────────────────────────────────── */
 #app {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* ── Legacy Variable Aliases (used by DashboardView + pages) ───── */
+:root {
+  /* Backgrounds */
+  --cyber-black:     #050a14;
+  --cyber-dark:      rgba(10, 22, 40, 0.95);
+  --cyber-gray:      rgba(10, 22, 40, 0.6);
+
+  /* Text */
+  --text-primary:    #e0e1dd;
+  --text-secondary:  #7fb3d5;
+  --text-muted:      #475569;
+
+  /* Borders */
+  --border-color:    rgba(0, 243, 255, 0.2);
+
+  /* Neon accents */
+  --neon-cyan:       #00f3ff;
+  --neon-pink:       #ff006e;
+  --neon-green:      #39ff14;
+
+  /* Glows */
+  --glow-cyan:       0 0 20px rgba(0, 243, 255, 0.4);
+  --glow-pink:       0 0 20px rgba(255, 0, 110, 0.4);
+  --glow-green:      0 0 12px rgba(57, 255, 20, 0.4);
+
+  /* Gradients */
+  --gradient-cyber:  linear-gradient(135deg, #00f3ff, #ff006e);
+
+  /* Radii */
+  --radius-sm:       4px;
+  --radius-md:       8px;
+  --radius-lg:       12px;
 }
+
+/* ── Badge System ──────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.badge-cyan  { background: rgba(0, 243, 255, 0.12); color: #00f3ff; border: 1px solid rgba(0, 243, 255, 0.3); }
+.badge-pink  { background: rgba(255, 0, 110, 0.12); color: #ff006e; border: 1px solid rgba(255, 0, 110, 0.3); }
+.badge-green { background: rgba(57, 255, 20, 0.1);  color: #39ff14; border: 1px solid rgba(57, 255, 20, 0.3); }
+.badge-purple { background: rgba(0, 243, 255, 0.12); color: #00f3ff; border: 1px solid rgba(0, 243, 255, 0.3); }
+
+/* ── Status Dots ───────────────────────────────────────────────── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-online  { background: #39ff14; box-shadow: 0 0 8px rgba(57, 255, 20, 0.6); }
+.status-working { background: #ffa500; box-shadow: 0 0 8px rgba(255, 165, 0, 0.6); }
+.status-idle    { background: #7fb3d5; box-shadow: none; }
+
+/* ── Global Button Variants ────────────────────────────────────── */
+.btn-primary {
+  background: transparent;
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.6em 1.4em;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-primary:hover {
+  background: var(--neon-cyan);
+  color: var(--bg-primary);
+  box-shadow: var(--glow-cyan);
+}
+
