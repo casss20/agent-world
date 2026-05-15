@@ -16,6 +16,7 @@ from sqlalchemy import select, update, delete, and_
 from sqlalchemy.orm import selectinload
 
 from models import Room, Project, Agent, AgentRoom, BlackboardEvent, BlackboardOperation
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 from websocket_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 class RoomService:
     """Manages room lifecycle, context, membership, and coordination."""
+
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
+        self.storage_provider = storage_provider
 
     # ── Room CRUD ─────────────────────────────────────────────────────────────
 

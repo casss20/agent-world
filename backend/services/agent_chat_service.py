@@ -13,6 +13,7 @@ from sqlalchemy import select, desc
 
 from models import AgentConversation, Task
 from agents.roles.role_definitions import get_role, AgentRole
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,9 @@ class AgentChatService:
     - Context-aware responses
     """
 
-    def __init__(self):
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
         self._response_handlers: Dict[str, callable] = {}
+        self.storage_provider = storage_provider
 
     # ── Conversation ─────────────────────────────────────────────────────
 

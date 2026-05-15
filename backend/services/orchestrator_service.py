@@ -17,6 +17,7 @@ from sqlalchemy import select, desc
 from models import SwarmExecution, Task
 from agents.roles.role_definitions import get_role, list_roles
 from workflow_engine_native import WorkflowEngineNative, WorkflowDefinition, WorkflowTask
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,10 @@ class SwarmOrchestrator:
     - Tracks progress and aggregates results
     """
 
-    def __init__(self):
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
         self._active_swarms: Dict[str, SwarmExecution] = {}
         self._engine = WorkflowEngineNative()
+        self.storage_provider = storage_provider
 
     async def initialize(self):
         await self._engine.initialize()

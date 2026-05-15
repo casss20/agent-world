@@ -16,12 +16,16 @@ from sqlalchemy.orm import selectinload
 
 from models import Message, Room, Agent
 from websocket_manager import ws_manager
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger = logging.getLogger(__name__)
 
 
 class MessageService:
     """Handles all message operations: broadcast, DM, threads, history."""
+
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
+        self.storage_provider = storage_provider
 
     # ── Core Operations ───────────────────────────────────────────────────────
 

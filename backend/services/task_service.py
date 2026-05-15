@@ -16,6 +16,7 @@ from sqlalchemy import select, update, and_, desc
 
 from models import Task, Room, Agent, Activity
 from ledger_client import LedgerClient
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 from utils.retry import retry_with_backoff
 from websocket_manager import ws_manager
 
@@ -46,8 +47,9 @@ class TaskService:
     - Metrics tracking
     """
 
-    def __init__(self, ledger: Optional[LedgerClient] = None):
+    def __init__(self, ledger: Optional[LedgerClient] = None, storage_provider: Optional[BaseStorageProvider] = None):
         self.ledger = ledger
+        self.storage_provider = storage_provider
         self._handlers: Dict[str, List[Callable]] = {}
 
     # ── CRUD ──────────────────────────────────────────────────────────────────

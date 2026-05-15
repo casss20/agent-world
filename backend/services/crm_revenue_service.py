@@ -18,6 +18,7 @@ from sqlalchemy import select, func, desc
 
 from revenue_models import RevenueTransaction, CampaignPerformance, RevenueGoal
 from agents.roles.role_definitions import get_role
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +29,10 @@ class CRMRevenueService:
     Acts as the bridge between customer relations and financial metrics.
     """
 
-    def __init__(self):
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
         self.agent_id = "crm"
         self.agent_name = "Casey"
+        self.storage_provider = storage_provider
 
     # ── Revenue Queries ──────────────────────────────────────────────────
 
