@@ -234,6 +234,21 @@ from routes.credentials import router as credentials_router
 app.include_router(credentials_router)
 logger.info("🔐 Credential routes registered")
 
+# ── CRM Revenue Routes ─────────────────────────────────────────────────────
+from routes.crm_revenue import router as crm_revenue_router
+app.include_router(crm_revenue_router)
+logger.info("💰 CRM Revenue routes registered")
+
+# ── Content Scout Routes ───────────────────────────────────────────────────
+from routes.content_scout import router as content_scout_router
+app.include_router(content_scout_router)
+logger.info("📈 Content Scout routes registered")
+
+# ── Agent Governance Routes ────────────────────────────────────────────────
+from routes.agent_governance import router as agent_governance_router
+app.include_router(agent_governance_router)
+logger.info("🛡️ Agent Governance routes registered")
+
 logger.info("🤖 Agent Chat routes registered")
 
 
