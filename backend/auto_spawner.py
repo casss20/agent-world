@@ -25,6 +25,7 @@ from models import (
     Business, Agent, Room, RoomType, AgentRoom,
     AgentStatus, BusinessScope, TaskQueue, TaskStatus,
 )
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,9 @@ Business Goal: {goal}
 
 class AutoSpawner:
 
-    def __init__(self):
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
         self.llm = get_llm()
+        self.storage_provider = storage_provider
 
     async def spawn(self, goal: str, business_slug: str = "default") -> Dict[str, Any]:
         """

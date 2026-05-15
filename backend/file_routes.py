@@ -27,6 +27,8 @@ from database import get_db
 from sqlalchemy.orm import Session
 from models import Asset, Business, AuditLog
 
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
+
 # Import auth
 from auth import get_current_user
 

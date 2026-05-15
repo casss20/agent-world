@@ -17,6 +17,7 @@ from sqlalchemy import select, update, desc, and_
 
 from models import TaskQueue
 from utils.retry import retry_with_backoff, RetryExhaustedError
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +46,11 @@ class BackgroundWorker:
         self,
         max_concurrent: int = 10,
         poll_interval: float = 1.0,
+        storage_provider: Optional[BaseStorageProvider] = None,
     ):
         self.max_concurrent = max_concurrent
         self.poll_interval = poll_interval
+        self.storage_provider = storage_provider
         self._handlers: Dict[str, Callable] = {}
         self._running = False
         self._task: Optional[asyncio.Task] = None

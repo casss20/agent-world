@@ -6,11 +6,13 @@ from sqlalchemy import desc
 from models import (
     Room, RoomAgent, Agent, Task, Message, Activity, Project, Tenant
 )
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 import json
 
 class RoomService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db
+        self.storage_provider = storage_provider
     
     def create_room(self, project_id: UUID, name: str, description: str = None,
                    room_type: str = "general", guidelines: dict = None) -> Room:
@@ -256,8 +258,9 @@ class RoomService:
 
 
 class MessageService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db
+        self.storage_provider = storage_provider
     
     def send_message(self, room_id: UUID, from_agent_id: UUID,
                     content: str, to_agent_id: UUID = None,
@@ -294,8 +297,9 @@ class MessageService:
 
 
 class TaskService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db
+        self.storage_provider = storage_provider
     
     def create_task(self, room_id: UUID, owner_agent_id: UUID,
                    task_type: str, title: str, description: str = None,

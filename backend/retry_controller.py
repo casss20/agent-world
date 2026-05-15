@@ -15,6 +15,7 @@ from sqlalchemy import select, and_, or_, func
 
 from models import TaskQueue, TaskStatus, Agent
 from observability import logger, AgentTracer
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 # ============================================================================
 # RETRY CONFIGURATION
@@ -121,8 +122,9 @@ class DeadLetterQueue:
     - Error classification and alerting
     """
     
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db_session
+        self.storage_provider = storage_provider
     
     def move_to_dlq(
         self,
@@ -301,9 +303,10 @@ class RetryController:
     - Error classification
     """
     
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db_session
-        self.dlq = DeadLetterQueue(db_session)
+        self.storage_provider = storage_provider
+        self.dlq = DeadLetterQueue(db_session, storage_provider=storage_provider)
     
     async def execute_with_retry(
         self,

@@ -27,6 +27,7 @@ from models         import (
     RoomMessage, get_current_blackboard_state,
     TaskStatus, AgentStatus,
 )
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger       = logging.getLogger(__name__)
 router       = APIRouter(prefix="/api/v1", tags=["spawn"])

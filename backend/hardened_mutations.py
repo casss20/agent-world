@@ -21,6 +21,8 @@ from pydantic import BaseModel, Field
 import redis
 import redis.asyncio as redis_async
 
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
+
 # Import actual models
 from models import (
     Agent, Room, AgentRoom, AgentSession, Business,

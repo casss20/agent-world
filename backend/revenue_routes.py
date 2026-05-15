@@ -17,6 +17,7 @@ from revenue_models import (
 )
 from models import get_db
 from ledger_client import require_capability
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 router = APIRouter(prefix="/revenue", tags=["revenue"])
 
