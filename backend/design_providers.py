@@ -104,8 +104,8 @@ class Dalle3Provider(DesignProvider):
         return self.api_key is not None
     
     async def generate(self, request: DesignRequest) -> DesignResult:
-        """Generate using DALL-E 3"""
-        import openai
+        """Generate using DALL-E 3 via LLM provider registry"""
+        from core.providers.llm.llm_registry import get_llm_provider
         
         start_time = asyncio.get_event_loop().time()
         
@@ -115,8 +115,9 @@ class Dalle3Provider(DesignProvider):
         # Map dimensions to DALL-E sizes
         size = self._map_dimensions(request.dimensions)
         
-        response = await openai.images.generate(
-            model="dall-e-3",
+        # Get OpenAI provider through registry (no direct import)
+        llm = get_llm_provider()
+        image_urls = await llm.generate_image(
             prompt=enhanced_prompt,
             size=size,
             quality="standard",
@@ -127,9 +128,8 @@ class Dalle3Provider(DesignProvider):
         
         return DesignResult(
             provider=self.provider_type,
-            image_urls=[img.url for img in response.data],
+            image_urls=image_urls,
             metadata={
-                "revised_prompt": response.data[0].revised_prompt if response.data else None,
                 "size": size,
                 "model": "dall-e-3"
             },
