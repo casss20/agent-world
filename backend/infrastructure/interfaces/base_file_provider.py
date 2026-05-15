@@ -1,22 +1,23 @@
+"""BaseFileProvider interface."""
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Dict, Any, Optional
+
 
 class BaseFileProvider(ABC):
+    """Abstract file provider."""
+
     @abstractmethod
-    async def upload(self, file: bytes, path: str, mime_type: str = None) -> str:
-        pass
+    async def upload(self, file_data: bytes, filename: str, metadata: Dict = None) -> Dict[str, Any]:
+        ...
+
     @abstractmethod
-    async def download(self, path: str) -> bytes:
-        pass
+    async def download(self, file_id: str) -> Optional[bytes]:
+        ...
+
     @abstractmethod
-    async def delete(self, path: str) -> bool:
-        pass
+    async def delete(self, file_id: str) -> bool:
+        ...
+
     @abstractmethod
-    async def get_url(self, path: str, expiry: int = None) -> str:
-        pass
-    @abstractmethod
-    async def exists(self, path: str) -> bool:
-        pass
-    @abstractmethod
-    async def health_check(self) -> bool:
-        pass
+    async def list_files(self, prefix: str = "") -> list:
+        ...

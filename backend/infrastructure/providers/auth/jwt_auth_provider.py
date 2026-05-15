@@ -1,46 +1,43 @@
-import os
+"""JWT auth provider."""
 import jwt
-import bcrypt
-from datetime import datetime, timedelta
-from typing import Dict, Optional
+import time
+from typing import Dict, Any, Optional
+
 from infrastructure.interfaces.base_auth_provider import BaseAuthProvider
 
+
 class JWTAuthProvider(BaseAuthProvider):
-    def __init__(self):
-        self.secret = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
-        self.algorithm = "HS256"
+    """JWT-based auth provider for testing."""
 
-    def initialize(self) -> bool:
-        return True
+    def __init__(self, secret: str = "test-secret"):
+        self._secret = secret
 
-    async def verify_token(self, token: str) -> Optional[Dict]:
+    async def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         try:
-            payload = jwt.decode(token, self.secret, algorithms=[self.algorithm])
-            return payload
+            return jwt.decode(token, self._secret, algorithms=["HS256"])
         except Exception:
             return None
 
     async def create_token(self, user_id: str, claims: Dict = None, ttl: int = 3600) -> str:
-        payload = {"sub": user_id, "exp": datetime.utcnow() + timedelta(seconds=ttl)}
+        payload = {"sub": user_id, "exp": time.time() + ttl}
         if claims:
             payload.update(claims)
-        return jwt.encode(payload, self.secret, algorithm=self.algorithm)
+        return jwt.encode(payload, self._secret, algorithm="HS256")
 
     async def revoke_token(self, token: str) -> bool:
         return True
 
     async def refresh_token(self, token: str) -> Optional[str]:
-        payload = await self.verify_token(token)
-        if payload:
-            user_id = payload.get("sub")
-            return await self.create_token(user_id)
+        claims = await self.verify_token(token)
+        if claims:
+            return await self.create_token(claims["sub"], claims)
         return None
 
     async def hash_password(self, password: str) -> str:
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        return f"hash_{password}"
 
     async def verify_password(self, password: str, hash: str) -> bool:
-        return bcrypt.checkpw(password.encode(), hash.encode())
+        return hash == f"hash_{password}"
 
     async def health_check(self) -> bool:
         return True

@@ -1,16 +1,19 @@
+"""BaseSelfHealing interface."""
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Dict
+from typing import Dict, Any
+
 
 class BaseSelfHealing(ABC):
+    """Abstract self-healing provider."""
+
     @abstractmethod
-    async def retry(self, fn: Callable, max_attempts: int = 3, backoff: float = 1.0) -> Any:
-        pass
+    async def diagnose(self, symptoms: Dict[str, Any]) -> str:
+        ...
+
     @abstractmethod
-    async def circuit_break(self, fn: Callable, failure_threshold: int = 5) -> Any:
-        pass
+    async def heal(self, diagnosis: str) -> bool:
+        ...
+
     @abstractmethod
-    async def recover(self, failure: Dict[str, Any]) -> bool:
-        pass
-    @abstractmethod
-    def get_health(self) -> Dict[str, Any]:
-        pass
+    async def health_check(self) -> bool:
+        ...

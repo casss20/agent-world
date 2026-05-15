@@ -1,22 +1,19 @@
+"""BaseMessagingProvider interface."""
 from abc import ABC, abstractmethod
-from typing import Dict, List, Callable
+from typing import Dict, Any, Optional
+
 
 class BaseMessagingProvider(ABC):
+    """Abstract messaging provider."""
+
     @abstractmethod
-    async def send(self, channel: str, message: Dict) -> bool:
-        pass
+    async def send(self, recipient: str, message: str, metadata: Dict = None) -> str:
+        ...
+
     @abstractmethod
-    async def broadcast(self, channels: List[str], message: Dict) -> bool:
-        pass
+    async def receive(self, queue: str = "default") -> Optional[Dict[str, Any]]:
+        ...
+
     @abstractmethod
-    async def subscribe(self, channel: str, handler: Callable) -> str:
-        pass
-    @abstractmethod
-    async def unsubscribe(self, subscription_id: str) -> bool:
-        pass
-    @abstractmethod
-    async def get_channel_members(self, channel: str) -> List[str]:
-        pass
-    @abstractmethod
-    async def health_check(self) -> bool:
-        pass
+    async def broadcast(self, channel: str, message: str) -> int:
+        ...

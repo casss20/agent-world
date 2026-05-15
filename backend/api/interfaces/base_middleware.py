@@ -1,16 +1,15 @@
+"""Week 8: BaseMiddleware interface."""
 from abc import ABC, abstractmethod
-from fastapi import Request, Response
-from typing import Callable
+from typing import Any
+
 
 class BaseMiddleware(ABC):
+    """Abstract middleware provider."""
+
     @abstractmethod
-    async def process_request(self, request: Request) -> Request:
-        pass
+    async def process_request(self, request: Any) -> Any:
+        ...
+
     @abstractmethod
-    async def process_response(self, response: Response) -> Response:
-        pass
-    async def __call__(self, request: Request, call_next: Callable) -> Response:
-        request = await self.process_request(request)
-        response = await call_next(request)
-        response = await self.process_response(response)
-        return response
+    async def process_response(self, response: Any) -> Any:
+        ...

@@ -1,26 +1,19 @@
+"""BaseScout interface."""
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
-from enum import Enum
+from typing import Dict, Any, List
 
-class SourceType(str, Enum):
-    REDDIT = "reddit"
-    HACKERNEWS = "hackernews"
-    PRODUCTHUNT = "producthunt"
-    TWITTER = "twitter"
 
 class BaseScout(ABC):
+    """Abstract scout/reconnaissance provider."""
+
     @abstractmethod
-    async def scrape(self, source: SourceType, query: str, limit: int = 20) -> List[Dict]:
-        pass
+    async def explore(self, target: str) -> List[Dict[str, Any]]:
+        ...
+
     @abstractmethod
-    async def schedule(self, query: str, interval: int, source: SourceType) -> str:
-        pass
+    async def report(self, findings: List[Dict[str, Any]]) -> str:
+        ...
+
     @abstractmethod
-    async def get_results(self, job_id: str) -> List[Dict]:
-        pass
-    @abstractmethod
-    async def cancel_job(self, job_id: str) -> bool:
-        pass
-    @abstractmethod
-    async def health_check(self, source: SourceType) -> bool:
-        pass
+    async def health_check(self) -> bool:
+        ...

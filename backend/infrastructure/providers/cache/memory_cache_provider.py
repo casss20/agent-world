@@ -1,36 +1,27 @@
-import time
-from typing import Any, Dict, Optional
+"""Memory cache provider."""
+from typing import Any, Optional, Dict
+
 from infrastructure.interfaces.base_cache_provider import BaseCacheProvider
 
+
 class MemoryCacheProvider(BaseCacheProvider):
+    """In-memory cache provider for testing."""
+
     def __init__(self):
-        self._store: Dict[str, tuple[Any, float]] = {}
+        self._data: Dict[str, Any] = {}
 
-    def initialize(self) -> bool:
-        return True
+    async def get(self, key: str) -> Optional[Any]:
+        return self._data.get(key)
 
-    async def get(self, key: str) -> Any:
-        if key in self._store:
-            value, expiry = self._store[key]
-            if expiry == 0 or time.time() < expiry:
-                return value
-            del self._store[key]
-        return None
-
-    async def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
-        expiry = time.time() + ttl if ttl > 0 else 0
-        self._store[key] = (value, expiry)
+    async def set(self, key: str, value: Any, ttl: int = None) -> bool:
+        self._data[key] = value
         return True
 
     async def delete(self, key: str) -> bool:
-        if key in self._store:
-            del self._store[key]
+        if key in self._data:
+            del self._data[key]
             return True
         return False
-
-    async def exists(self, key: str) -> bool:
-        val = await self.get(key)
-        return val is not None
 
     async def health_check(self) -> bool:
         return True
