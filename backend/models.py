@@ -472,3 +472,60 @@ class AgentSession(Base):
     extra_data = Column(JSON, default=dict)
 
     agent = relationship("Agent", backref="sessions")
+
+
+class SwarmExecution(Base):
+    __tablename__ = 'swarm_executions'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    swarm_id = Column(String(50), unique=True, nullable=False)
+    task_id = Column(String(36), ForeignKey('tasks.id'))
+    framework = Column(String(50), default='native')
+    agents_spawned = Column(Integer, default=0)
+    agents_completed = Column(Integer, default=0)
+    status = Column(String(50), default='pending')
+    decomposition = Column(JSON, default=[])
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+
+class AgentConversation(Base):
+    __tablename__ = 'agent_conversations'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String(50), nullable=False)
+    user_id = Column(String(36), nullable=False)
+    message = Column(Text, nullable=False)
+    response = Column(Text, nullable=True)
+    task_assigned = Column(String(50), nullable=True)
+    task_status = Column(String(50), default='pending')
+    extra_data = Column(JSON, default={})
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PluginRegistryEntry(Base):
+    __tablename__ = 'plugin_registry'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    provider_type = Column(String(100), nullable=False)
+    version = Column(String(50), default='1.0.0')
+    status = Column(String(50), default='active')
+    config = Column(JSON, default={})
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MCPServerConnection(Base):
+    __tablename__ = 'mcp_server_connections'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    transport = Column(String(50), default='stdio')
+    endpoint = Column(String(500), nullable=True)
+    config = Column(JSON, default={})
+    status = Column(String(50), default='inactive')
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -216,6 +216,26 @@ app.include_router(agents_router)
 app.include_router(messages_router)
 app.include_router(projects_router)
 app.include_router(governance_router)
+# ── Agent Chat Routes ──────────────────────────────────────────────────────
+from routes.agent_chat import router as agent_chat_router
+app.include_router(agent_chat_router)
+# ── Orchestrator Routes ────────────────────────────────────────────────────
+from routes.orchestrator import router as orchestrator_router
+app.include_router(orchestrator_router)
+logger.info("🐝 Swarm Orchestrator routes registered")
+
+# ── Plugin Registry Routes ─────────────────────────────────────────────────
+from routes.plugin_registry import router as plugin_registry_router
+app.include_router(plugin_registry_router)
+logger.info("🔌 Plugin Registry routes registered")
+
+# ── Credential Routes ──────────────────────────────────────────────────────
+from routes.credentials import router as credentials_router
+app.include_router(credentials_router)
+logger.info("🔐 Credential routes registered")
+
+logger.info("🤖 Agent Chat routes registered")
+
 
 # CORS for frontend
 app.add_middleware(

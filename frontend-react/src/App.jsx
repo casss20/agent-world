@@ -14,6 +14,7 @@ import AgentTemplatesPage from './pages/AgentTemplatesPage'
 import { BusinessIntakeWizard } from './pages/BusinessIntakeWizard'
 import { DiagnosticReport } from './pages/DiagnosticReport'
 import { StrategyRecommendation } from './pages/StrategyRecommendation'
+import { AgentDashboard, SwarmMonitor, ProviderStatusPanel } from './components/agents'
 
 // Business Workspace Wrapper
 function BusinessRoute({ businessId }) {
@@ -40,6 +41,9 @@ function App() {
             <Route path="/approvals"    element={<ApprovalGate />} />
             <Route path="/channels"     element={<ChannelsPage />} />
             <Route path="/agents"       element={<AgentTemplatesPage />} />
+            <Route path="/agent-directory" element={<AgentDashboard />} />
+            <Route path="/swarm-monitor"   element={<SwarmMonitor />} />
+            <Route path="/providers"     element={<ProviderStatusPanel />} />
             <Route path="/business/:id"   element={<BusinessRouteWrapper />} />
             <Route path="/business/:id/*" element={<BusinessRouteWrapper />} />
           </Routes>
