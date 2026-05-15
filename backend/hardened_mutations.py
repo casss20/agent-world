@@ -22,6 +22,7 @@ import redis
 import redis.asyncio as redis_async
 
 from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
+from infrastructure.interfaces.base_queue_provider import BaseQueueProvider
 
 # Import actual models
 from models import (
