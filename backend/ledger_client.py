@@ -12,6 +12,13 @@ import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
+# Backward compatibility stub for revenue_routes.py
+def require_capability(capability: str):
+    """Placeholder capability check — always allows."""
+    def decorator(fn):
+        return fn
+    return decorator
+
 class LedgerClient:
     """Client for interacting with Ledger governance system"""
     

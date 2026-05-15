@@ -16,6 +16,7 @@ from security_middleware import (
     get_current_user, 
     require_admin, 
     require_governor,
+    require_roles,
     TokenPayload
 )
 from governance_v2 import EventType, GovernanceEvent

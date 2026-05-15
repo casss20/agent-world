@@ -366,6 +366,7 @@ Output format (always use this structure):
 
 You surface the truth about what's blocking growth — the strategy comes from Forge.
 Your diagnosis must be evidence-based, not guesswork.""",
+    },
 
     # ─── Pixel ────────────────────────────────────────────────────
     {

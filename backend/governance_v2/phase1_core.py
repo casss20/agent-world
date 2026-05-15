@@ -547,11 +547,16 @@ class LedgerGovernanceV2:
 
 
 # Export for use
+# Compatibility aliases
+GovernancePhase1 = LedgerGovernanceV2
+GovernancePhase2 = LedgerGovernanceV2
+
 __all__ = [
     'CapabilityIssuer',
     'CapabilityToken',
     'RiskClassifier',
     'RiskLevel',
     'FeatureFlagController',
-    'LedgerGovernanceV2'
+    'LedgerGovernanceV2', 'GovernancePhase1', 'GovernancePhase2'
 ]
+

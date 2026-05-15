@@ -8,9 +8,25 @@ import uuid
 from datetime import datetime
 import random
 
-# Import OpenTelemetry
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from telemetry import setup_telemetry, shutdown_telemetry, get_logger
+# Import OpenTelemetry (optional)
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from telemetry import setup_telemetry, shutdown_telemetry, get_logger
+    OPENTELEMETRY_AVAILABLE = True
+except ImportError:
+    OPENTELEMETRY_AVAILABLE = False
+    # Create stubs
+    def setup_telemetry(service_name=None, service_version=None, environment=None):
+        return None, None, None
+    def shutdown_telemetry():
+        pass
+    def get_logger(name):
+        import logging
+        return logging.getLogger(name)
+    class FastAPIInstrumentor:
+        @staticmethod
+        def instrument_app(*args, **kwargs):
+            pass
 
 # Import security middleware
 from security_middleware import SecurityMiddleware
@@ -44,6 +60,18 @@ from design_providers import (
 # Import governance system
 from governance_v2 import LedgerGovernanceSystem
 
+# Import new routes and infrastructure
+from database import engine, get_db, init_db
+from websocket_manager import ws_manager
+from routes import (
+    rooms_router,
+    tasks_router,
+    agents_router,
+    messages_router,
+    projects_router,
+    governance_router,
+)
+
 # Setup OpenTelemetry
 tracer_provider, meter_provider, logger_provider = setup_telemetry(
     service_name="agent-world-backend",
@@ -75,6 +103,14 @@ def get_governance_system():
 @app.on_event("startup")
 async def startup_event():
     global governance_system
+
+    # ── Database initialization ─────────────────────────────────────
+    await init_db()
+    print("✅ Database tables initialized")
+
+    # ── WebSocket Manager startup ─────────────────────────────────────
+    await ws_manager.start()
+    print("✅ WebSocket manager started")
 
     # ── Ledger Governance ─────────────────────────────────────────────
     from governance_init import start_governance, stop_governance
@@ -146,6 +182,11 @@ async def shutdown_event():
     if governance_system:
         governance_system.stop()
         logger.info("Ledger 2.0 Governance System stopped")
+
+    # Shutdown WebSocket manager
+    await ws_manager.stop()
+    logger.info("WebSocket manager stopped")
+
     # Shutdown OpenTelemetry
     shutdown_telemetry()
     logger.info("Telemetry shutdown complete")
@@ -167,6 +208,14 @@ app.include_router(metrics_router)
 app.include_router(dlq_router)
 app.include_router(lifecycle_router)
 app.include_router(file_router, prefix="/api/v1")
+
+# NEW v1 API routes (Ruflo pattern integration)
+app.include_router(rooms_router)
+app.include_router(tasks_router)
+app.include_router(agents_router)
+app.include_router(messages_router)
+app.include_router(projects_router)
+app.include_router(governance_router)
 
 # CORS for frontend
 app.add_middleware(
@@ -375,7 +424,51 @@ async def pause_agent(agent_id: str):
     })
     return {"success": True}
 
-# WebSocket endpoint
+# NEW v1 WebSocket endpoint (per-room, scalable)
+@app.websocket("/ws/v1/room/{room_id}")
+async def websocket_room_endpoint(
+    websocket: WebSocket,
+    room_id: str,
+    agent_id: str,
+):
+    """Scalable per-room WebSocket using WebSocketManager."""
+    await ws_manager.connect(websocket, room_id, agent_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            await ws_manager.handle_message(room_id, agent_id, message)
+    except WebSocketDisconnect:
+        await ws_manager.disconnect(websocket, room_id, agent_id)
+
+
+@app.get("/api/v1/health")
+async def health_check():
+    """Health check for v1 API infrastructure."""
+    return {
+        "status": "healthy",
+        "version": "2.1.0",
+        "websocket_manager": {
+            "active_rooms": len(ws_manager.active_rooms()),
+            "total_connections": ws_manager.total_connections(),
+        },
+        "database": "connected" if engine else "unknown",
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@app.get("/api/v1/rooms/{room_id}/presence")
+async def get_room_presence_api(room_id: str):
+    """Get real-time presence for a room."""
+    presence = ws_manager.get_room_presence(room_id)
+    return {
+        "room_id": room_id,
+        "presence": presence,
+        "agent_count": len(presence),
+    }
+
+
+# Original WebSocket endpoint (backward compatible)
 @app.websocket("/ws/world")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

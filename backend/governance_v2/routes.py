@@ -52,6 +52,53 @@ class LoginRequest(BaseModel):
     role: Role
 
 
+class ExecuteActionRequest(BaseModel):
+    """Execute action through governance"""
+    action_type: str
+    target_id: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    priority: Optional[str] = "normal"
+    room_id: Optional[str] = None
+    agent_id: Optional[str] = None
+
+
+class TokenRequest(BaseModel):
+    """Issue capability token request"""
+    agent_id: str
+    capabilities: Optional[List[str]] = None
+    expires_in_hours: Optional[int] = 24
+    room_id: Optional[str] = None
+
+
+class AgentRegistrationRequest(BaseModel):
+    """Register agent with governance"""
+    agent_id: str
+    name: Optional[str] = None
+    role: Optional[str] = "worker"
+    capabilities: Optional[List[str]] = None
+    room_id: Optional[str] = None
+
+
+class KillSwitchTriggerRequest(BaseModel):
+    """Trigger kill switch"""
+    target_type: str  # agent, room, system
+    target_id: Optional[str] = None
+    reason: str
+    room_id: Optional[str] = None
+
+
+class TaskSubmissionRequest(BaseModel):
+    """Submit task for governance approval"""
+    title: str
+    description: Optional[str] = None
+    task_type: str = "generic"
+    priority: Optional[str] = "medium"
+    estimated_impact: int = 0
+    owner_agent_id: str
+    room_id: str
+    depends_on: Optional[List[str]] = None
+
+
 class TokenResponse(BaseModel):
     """Token response"""
     access_token: str
@@ -122,7 +169,7 @@ async def login(request: LoginRequest):
 @router.post("/execute")
 async def execute_action(
     request: ExecuteActionRequest,
-    user: TokenPayload = Depends(require_governor()),  # ← REQUIRES GOVERNOR ROLE
+    user: TokenPayload = Depends(require_governor),  # ← REQUIRES GOVERNOR ROLE
     governance=Depends(get_governance_system)
 ):
     """
@@ -169,7 +216,7 @@ async def execute_action(
 @router.post("/token")
 async def issue_token(
     request: TokenRequest,
-    user: TokenPayload = Depends(require_governor()),  # ← REQUIRES GOVERNOR ROLE
+    user: TokenPayload = Depends(require_governor),  # ← REQUIRES GOVERNOR ROLE
     governance=Depends(get_governance_system)
 ):
     """
@@ -230,7 +277,7 @@ async def classify_risk(
     action: str,
     resource: str,
     context: Dict[str, Any] = {},
-    user: TokenPayload = Depends(require_governor()),  # ← REQUIRES GOVERNOR+
+    user: TokenPayload = Depends(require_governor),  # ← REQUIRES GOVERNOR+
     governance=Depends(get_governance_system)
 ):
     """Classify risk level (Governor+ only)"""
@@ -248,7 +295,7 @@ async def classify_risk(
 @router.post("/agents/register")
 async def register_agent(
     request: AgentRegistrationRequest,
-    user: TokenPayload = Depends(require_operator()),  # ← REQUIRES OPERATOR+
+    user: TokenPayload = Depends(require_operator),  # ← REQUIRES OPERATOR+
     governance=Depends(get_governance_system)
 ):
     """
@@ -363,7 +410,7 @@ async def list_agents(
 @router.post("/agents/{agent_id}/heartbeat")
 async def agent_heartbeat(
     agent_id: str,
-    user: TokenPayload = Depends(require_operator()),  # ← OPERATOR+
+    user: TokenPayload = Depends(require_operator),  # ← OPERATOR+
     governance=Depends(get_governance_system)
 ):
     """Agent heartbeat (Operator+ only)"""
@@ -374,7 +421,7 @@ async def agent_heartbeat(
 @router.post("/tasks/submit")
 async def submit_task(
     request: TaskSubmissionRequest,
-    user: TokenPayload = Depends(require_operator()),  # ← OPERATOR+
+    user: TokenPayload = Depends(require_operator),  # ← OPERATOR+
     governance=Depends(get_governance_system)
 ):
     """Submit task (Operator+ only)"""
@@ -393,7 +440,7 @@ async def submit_task(
 @router.post("/killswitches/trigger")
 async def trigger_kill_switch(
     request: KillSwitchTriggerRequest,
-    user: TokenPayload = Depends(require_admin()),  # ← ADMIN ONLY
+    user: TokenPayload = Depends(require_admin),  # ← ADMIN ONLY
     governance=Depends(get_governance_system)
 ):
     """
@@ -433,7 +480,7 @@ async def trigger_kill_switch(
 
 @router.get("/killswitches")
 async def list_kill_switches(
-    user: TokenPayload = Depends(require_admin())  # ← ADMIN ONLY
+    user: TokenPayload = Depends(require_admin)  # ← ADMIN ONLY
 ):
     """List kill switches (Admin only)"""
     return {
@@ -450,7 +497,7 @@ async def set_degradation(
     component_name: str,
     level: str,  # normal, degraded, critical
     reason: str,
-    user: TokenPayload = Depends(require_admin()),  # ← ADMIN ONLY
+    user: TokenPayload = Depends(require_admin),  # ← ADMIN ONLY
 ):
     """
     Set component degradation level.
@@ -483,7 +530,7 @@ async def set_degradation(
 
 @router.get("/degradation/status")
 async def get_degradation_status(
-    user: TokenPayload = Depends(require_governor())  # ← GOVERNOR+
+    user: TokenPayload = Depends(require_governor)  # ← GOVERNOR+
 ):
     """Get degradation status (Governor+)"""
     return {
@@ -529,7 +576,7 @@ async def status(
 async def get_audit_events(
     actor: Optional[str] = None,
     action: Optional[str] = None,
-    user: TokenPayload = Depends(require_admin())  # ← ADMIN ONLY
+    user: TokenPayload = Depends(require_admin)  # ← ADMIN ONLY
 ):
     """Query audit events (Admin only)"""
     events = audit_logger.get_events(actor=actor, action=action)

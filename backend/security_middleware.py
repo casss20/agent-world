@@ -458,10 +458,31 @@ async def require_role(
     return user
 
 
+def require_roles(required_roles: List[str]):
+    """Factory that returns a dependency requiring any of the specified roles."""
+    async def _check(user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
+        role_hierarchy = [Role.VIEWER, Role.OPERATOR, Role.GOVERNOR, Role.ADMIN]
+        user_level = role_hierarchy.index(user.role)
+        required_levels = [role_hierarchy.index(Role(r)) for r in required_roles]
+        min_required = min(required_levels)
+        if user_level < min_required:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"One of roles {required_roles} required"
+            )
+        return user
+    return _check
+
+
 # Convenience dependencies
-require_admin = lambda: require_role(Role.ADMIN)
-require_governor = lambda: require_role(Role.GOVERNOR)
-require_operator = lambda: require_role(Role.OPERATOR)
+async def require_admin(user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
+    return await require_role(Role.ADMIN, user)
+
+async def require_governor(user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
+    return await require_role(Role.GOVERNOR, user)
+
+async def require_operator(user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
+    return await require_role(Role.OPERATOR, user)
 
 
 # ============================================================================
@@ -653,6 +674,7 @@ __all__ = [
     "require_admin",
     "require_governor",
     "require_operator",
+    "require_roles",
     
     # Rate limiting
     "RateLimiter",

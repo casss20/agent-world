@@ -66,7 +66,7 @@ async def get_audit_logs(
 
 @router.get("/integrity")
 async def verify_audit_integrity(
-    user: TokenPayload = Depends(require_admin()),
+    user: TokenPayload = Depends(require_admin),
     audit_service: AuditLogService = Depends(get_audit_service)
 ):
     """
@@ -156,7 +156,7 @@ async def get_action_types(
 @router.get("/export/json")
 async def export_audit_logs_json(
     request: Request,
-    user: TokenPayload = Depends(require_admin()),
+    user: TokenPayload = Depends(require_admin),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     actor_type: Optional[ActorType] = None,
@@ -200,7 +200,7 @@ async def export_audit_logs_json(
 @router.get("/export/csv")
 async def export_audit_logs_csv(
     request: Request,
-    user: TokenPayload = Depends(require_admin()),
+    user: TokenPayload = Depends(require_admin),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     actor_type: Optional[ActorType] = None,
