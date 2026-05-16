@@ -140,12 +140,17 @@ class UltronHarness(BaseHarness):
         plan = result.routing_plan
         steps = []
         for idx, specialist in enumerate(plan.suggested_specialists, 1):
+            sid = specialist.value
+            # Phase 6: Merchant and Promoter require approval
+            requires_approval = sid in ["merchant", "promoter"]
             steps.append({
                 "id": f"step_{idx}",
-                "action": f"execute_{specialist.value}",
+                "action": f"execute_{sid}",
                 "tool": None,  # Phase 4: populate from MCP registry
-                "expected_output": f"{specialist.value.title()} output",
-                "specialist": specialist.value,
+                "expected_output": f"{sid.title()} output",
+                "specialist": sid,
+                "requires_approval": requires_approval,
+                "estimated_cost": 0.10 if requires_approval else 0.05,
             })
 
         return {
@@ -201,29 +206,69 @@ class UltronHarness(BaseHarness):
             artifacts.append({"type": "escalation", "target": escalate_to})
 
         elif plan_type == "specialist":
-            # Specialist execution — mock for Phase 3
+            # Specialist execution — Phase 6: approval gate integration
             for step in plan.get("steps", []):
                 specialist = step.get("specialist")
                 if not specialist:
                     continue
 
-                # Phase 3: Mock specialist execution
-                # Phase 4: Call actual specialist agent runtime
-                mock_output = self._mock_specialist_execute(specialist, context)
+                # Check if this specialist requires approval (Phase 6)
+                if step.get("requires_approval", False):
+                    # Submit to approval queue instead of executing
+                    try:
+                        from services.approval_queue import get_approval_queue
+                        queue = get_approval_queue()
+                        request = await queue.submit(
+                            task_id=step["id"],
+                            specialist_id=specialist,
+                            task_description=step.get("task", f"Execute {specialist} task"),
+                            reason=f"Budget-sensitive action by {specialist.title()}",
+                            estimated_cost=step.get("estimated_cost", 0.10),
+                            requested_by=context.agent_id or "ultron",
+                            metadata={
+                                "project_id": context.project_id,
+                                "plan_type": plan_type,
+                                "step": step,
+                            },
+                        )
+                        step_results.append({
+                            "step_id": step["id"],
+                            "success": True,
+                            "output": f"⏳ {specialist.title()} task submitted for approval (ID: {request.approval_id})",
+                            "reason": "Awaiting human approval",
+                            "approval_id": request.approval_id,
+                        })
+                        artifacts.append({
+                            "type": "approval_request",
+                            "specialist": specialist,
+                            "approval_id": request.approval_id,
+                        })
+                    except Exception as e:
+                        errors.append(f"Approval submission failed for {specialist}: {e}")
+                        step_results.append({
+                            "step_id": step["id"],
+                            "success": False,
+                            "output": f"Failed to submit approval: {str(e)}",
+                            "reason": "Approval queue error",
+                        })
+                else:
+                    # Phase 3: Mock specialist execution
+                    # Phase 4: Call actual specialist agent runtime
+                    mock_output = self._mock_specialist_execute(specialist, context)
 
-                step_results.append({
-                    "step_id": step["id"],
-                    "success": True,
-                    "output": mock_output,
-                    "reason": f"{specialist.title()} executed (mock)",
-                })
-                artifacts.append({
-                    "type": "specialist_output",
-                    "specialist": specialist,
-                    "content": mock_output,
-                })
-                tools_used.append(f"mock_{specialist}")
-                total_cost += 0.01  # Mock cost
+                    step_results.append({
+                        "step_id": step["id"],
+                        "success": True,
+                        "output": mock_output,
+                        "reason": f"{specialist.title()} executed (mock)",
+                    })
+                    artifacts.append({
+                        "type": "specialist_output",
+                        "specialist": specialist,
+                        "content": mock_output,
+                    })
+                    tools_used.append(f"mock_{specialist}")
+                    total_cost += 0.01  # Mock cost
 
         return {
             "step_results": step_results,

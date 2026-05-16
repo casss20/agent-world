@@ -60,17 +60,24 @@ async def request_approval(
     task_id: str,
     agent_id: str,
     reason: str,
+    specialist_id: str = "",
+    task_description: str = "",
+    estimated_cost: float = 0.0,
     impact_score: int = 0,
     _: None = Depends(rate_limit_dependency),
 ) -> Dict[str, Any]:
     """Request approval for a high-impact action."""
-    return {
-        "approval_id": str(__import__("uuid").uuid4()),
-        "status": "pending",
-        "task_id": task_id,
-        "agent_id": agent_id,
-        "reason": reason,
-    }
+    from services.approval_queue import get_approval_queue
+    queue = get_approval_queue()
+    request = await queue.submit(
+        task_id=task_id,
+        specialist_id=specialist_id or agent_id,
+        task_description=task_description or reason,
+        reason=reason,
+        estimated_cost=estimated_cost,
+        requested_by=agent_id,
+    )
+    return request.to_dict()
 
 
 @router.post("/approvals/{approval_id}/resolve")
@@ -82,12 +89,17 @@ async def resolve_approval(
     _: None = Depends(rate_limit_dependency),
 ) -> Dict[str, Any]:
     """Resolve an approval request."""
-    return {
-        "approval_id": approval_id,
-        "decision": decision,
-        "reviewer_id": reviewer_id,
-        "status": "resolved",
-    }
+    from services.approval_queue import get_approval_queue
+    queue = get_approval_queue()
+    result = await queue.resolve(
+        approval_id=approval_id,
+        decision=decision,
+        reviewer_id=reviewer_id,
+        reason=notes,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Approval not found or already resolved")
+    return result.to_dict()
 
 
 @router.get("/approvals/pending")
@@ -96,7 +108,26 @@ async def get_pending_approvals(
     _: None = Depends(rate_limit_dependency),
 ) -> List[Dict[str, Any]]:
     """Get pending approval requests."""
-    return []
+    from services.approval_queue import get_approval_queue
+    queue = get_approval_queue()
+    pending = await queue.list_pending(requested_by=agent_id)
+    return [r.to_dict() for r in pending]
+
+
+@router.get("/approvals/all")
+async def get_all_approvals(
+    status: Optional[str] = None,
+    limit: int = 50,
+    _: None = Depends(rate_limit_dependency),
+) -> Dict[str, Any]:
+    """Get all approvals with optional filtering."""
+    from services.approval_queue import get_approval_queue
+    queue = get_approval_queue()
+    approvals = await queue.list_all(status=status, limit=limit)
+    return {
+        "approvals": [r.to_dict() for r in approvals],
+        "stats": queue.stats(),
+    }
 
 
 # ── Audit ───────────────────────────────────────────────────────────────────
