@@ -14,6 +14,7 @@ from sqlalchemy import select, desc
 from models import AgentConversation, Task
 from agents.roles.role_definitions import get_role, AgentRole
 from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
+from services.ultron_orchestrator import get_ultron_orchestrator, OrchestratorResult
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +57,8 @@ class AgentChatService:
                 "available_agents": [r.id for r in list_all_roles()],
             }
 
-        # Generate response (placeholder — would integrate with LLM)
-        response = self._generate_response(role, message, context)
+        # Generate response via Ultron harness (Phase 2) or fallback placeholder
+        response = await self._generate_response(role, message, context)
 
         # Persist conversation
         conv = AgentConversation(
@@ -239,14 +240,46 @@ class AgentChatService:
 
     # ── Internal ─────────────────────────────────────────────────────────
 
-    def _generate_response(
+    async def _generate_response(
         self, role: AgentRole, message: str, context: Optional[Dict[str, Any]]
     ) -> str:
         """
         Generate a response from the agent.
-        In production, this would call an LLM with the role's system prompt.
-        For now, returns a structured placeholder.
+        Phase 2: Routes through Ultron orchestrator when harness is enabled.
+        Falls back to placeholder for non-enabled agents or simple queries.
         """
+        # ── Phase 2: Ultron Routing ────────────────────────────────────────
+        try:
+            ultron = get_ultron_orchestrator()
+            result = await ultron.analyze_message(role, message, context)
+
+            if result.action == "route" and result.routing_plan:
+                # Format Ultron's routing plan as the response
+                routing_msg = await ultron.format_routing_response(result, role)
+                if routing_msg:
+                    return (
+                        f"[{role.name} | {role.role}]\n\n"
+                        f"I analyzed your request and coordinated with Ultron.\n\n"
+                        f"{routing_msg}\n\n"
+                        f"---\n"
+                        f"Original message: '{message}'"
+                    )
+
+            elif result.action == "escalate" and result.escalate_to:
+                escalate_role = get_role(result.escalate_to)
+                escalate_name = escalate_role.name if escalate_role else result.escalate_to
+                return (
+                    f"[{role.name} | {role.role}]\n\n"
+                    f"This request is best handled by {escalate_name}. "
+                    f"I'm transferring you now...\n\n"
+                    f"(Ultron escalation: {result.reason})"
+                )
+
+            # Fall through to direct response for "direct" action or empty routing
+        except Exception as e:
+            logger.warning(f"Ultron routing failed for {role.id}: {e}. Falling back.")
+
+        # ── Fallback Placeholder ─────────────────────────────────────────
         return (
             f"[{role.name} | {role.role}]\n\n"
             f"I received your message: '{message}'\n\n"
