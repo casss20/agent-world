@@ -197,7 +197,12 @@ app.include_router(channel_router)        # channels, routing, agent templates
 app.include_router(diagnostic_router)     # business diagnostics & strategy
 app.include_router(setup_wizard_router)   # interactive setup wizard
 app.include_router(revenue_router)        # revenue tracking & ROAS
+from routes.command_center_router import router as command_center_router
+
+[60 more lines in file. Use offset=61 to continue.]
+
 app.include_router(n8n_router)            # n8n webhooks & integrations
+app.include_router(command_center_router)  # unified command center dashboard (Phase 8)
 app.include_router(design_router)         # design providers (DALL-E, Nano Banana, etc.)
 app.include_router(chatdev_router)
 app.include_router(ledger_router)
