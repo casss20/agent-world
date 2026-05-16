@@ -47,9 +47,12 @@ class TaskService:
     - Metrics tracking
     """
 
-    def __init__(self, ledger: Optional[LedgerClient] = None, storage_provider: Optional[BaseStorageProvider] = None):
+    def __init__(self, ledger: Optional[LedgerClient] = None, storage_provider: Optional[BaseStorageProvider] = None, queue_provider: Optional[Any] = None, auth_provider: Optional[Any] = None, repository: Optional[Any] = None):
         self.ledger = ledger
         self.storage_provider = storage_provider
+        self.queue_provider = queue_provider
+        self.auth_provider = auth_provider
+        self.repository = repository
         self._handlers: Dict[str, List[Callable]] = {}
 
     # ── CRUD ──────────────────────────────────────────────────────────────────

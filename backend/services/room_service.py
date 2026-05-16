@@ -25,8 +25,11 @@ logger = logging.getLogger(__name__)
 class RoomService:
     """Manages room lifecycle, context, membership, and coordination."""
 
-    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None):
+    def __init__(self, storage_provider: Optional[BaseStorageProvider] = None, queue_provider: Optional[Any] = None, auth_provider: Optional[Any] = None, repository: Optional[Any] = None):
         self.storage_provider = storage_provider
+        self.queue_provider = queue_provider
+        self.auth_provider = auth_provider
+        self.repository = repository
 
     # ── Room CRUD ─────────────────────────────────────────────────────────────
 
