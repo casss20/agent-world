@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, AsyncGenerator
-from core.interfaces.base_llm_provider import BaseLLMProvider
+from core.interfaces.base_llm_provider import BaseLLMProvider, ProviderCapability
 
 
 class AnthropicLLMProvider(BaseLLMProvider):
@@ -53,3 +53,6 @@ class AnthropicLLMProvider(BaseLLMProvider):
             return True
         except Exception:
             return False
+
+    def get_capability(self) -> ProviderCapability:
+        return ProviderCapability.LLM

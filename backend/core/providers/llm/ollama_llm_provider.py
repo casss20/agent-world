@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, AsyncGenerator
-from core.interfaces.base_llm_provider import BaseLLMProvider
+from core.interfaces.base_llm_provider import BaseLLMProvider, ProviderCapability
 
 
 class OllamaLLMProvider(BaseLLMProvider):
@@ -58,3 +58,6 @@ class OllamaLLMProvider(BaseLLMProvider):
 
     async def health_check(self) -> bool:
         return self.initialize()
+
+    def get_capability(self) -> ProviderCapability:
+        return ProviderCapability.LLM

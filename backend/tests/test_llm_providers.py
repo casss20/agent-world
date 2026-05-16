@@ -55,6 +55,10 @@ class MockLLMProvider(BaseLLMProvider):
     async def health_check(self) -> bool:
         return True
 
+    def get_capability(self):
+        from core.interfaces.base_llm_provider import ProviderCapability
+        return ProviderCapability.LLM
+
 
 # ── Mock Tests ─────────────────────────────────────────────────────────
 

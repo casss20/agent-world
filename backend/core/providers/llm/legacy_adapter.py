@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, AsyncGenerator
-from core.interfaces.base_llm_provider import BaseLLMProvider
+from core.interfaces.base_llm_provider import BaseLLMProvider, ProviderCapability
 
 
 class LegacyLLMProviderAdapter(BaseLLMProvider):
@@ -61,3 +61,6 @@ class LegacyLLMProviderAdapter(BaseLLMProvider):
 
     async def health_check(self) -> bool:
         return self._inner is not None
+
+    def get_capability(self) -> ProviderCapability:
+        return ProviderCapability.LLM

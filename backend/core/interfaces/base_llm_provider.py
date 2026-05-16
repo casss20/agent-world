@@ -1,5 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, AsyncGenerator, Optional
+from enum import Enum
+
+
+class ProviderCapability(Enum):
+    """Capability flags for LLM providers."""
+    LLM = "llm"
+    EMBEDDING = "embedding"
+    IMAGE = "image"
+    VISION = "vision"
+
 
 
 class BaseLLMProvider(ABC):
@@ -43,7 +53,10 @@ class BaseLLMProvider(ABC):
         pass
 
     @abstractmethod
-    @abstractmethod
+    async def health_check(self) -> bool:
+        """Return True if LLM service is reachable and healthy."""
+        pass
+
     async def generate_image(
         self,
         prompt: str,
@@ -53,7 +66,10 @@ class BaseLLMProvider(ABC):
     ) -> List[str]:
         """Generate images from prompt. Return list of URLs."""
         raise NotImplementedError("Image generation not supported by this provider")
-        """Return True if LLM service is reachable and healthy."""
+
+    @abstractmethod
+    def get_capability(self) -> ProviderCapability:
+        """Return the primary capability of this provider."""
         pass
 
     def get_model_info(self) -> Dict[str, Any]:
