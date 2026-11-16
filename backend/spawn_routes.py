@@ -27,16 +27,26 @@ from models         import (
     RoomMessage, get_current_blackboard_state,
     TaskStatus, AgentStatus,
 )
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 logger       = logging.getLogger(__name__)
 router       = APIRouter(prefix="/api/v1", tags=["spawn"])
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/agentworld")
-_engine      = create_engine(DATABASE_URL, pool_pre_ping=True)
-_Session     = sessionmaker(bind=_engine)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agentworld.db")
+
+# Lazy engine creation
+try:
+    _engine      = create_engine(DATABASE_URL, pool_pre_ping=True)
+    _Session     = sessionmaker(bind=_engine)
+except Exception as e:
+    logger.warning("Database engine creation failed: %s", e)
+    _engine = None
+    _Session = None
 
 
 def _db():
+    if _Session is None:
+        raise RuntimeError("Database not available")
     return _Session()
 
 

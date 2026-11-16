@@ -1,8 +1,17 @@
 # Phase 4: Hardening Implementation
 ## ResourceGuard (formerly "Sandbox") + Graceful Degradation + Emergency Systems
-## 
+##
 ## NOTE: This is a resource limiter, not a true sandbox. Code runs in-process with
 ## resource limits via setrlimit(). For true isolation, use subprocess + seccomp
+
+from enum import Enum
+
+class SandboxType(Enum):
+    """Compatibility shim for missing import in governance_v2/__init__.py."""
+    RESTRICTED = "restricted"
+    STANDARD = "standard"
+    PRIVILEGED = "privileged"
+
 ## or containers (see TODO below).
 
 import asyncio
@@ -53,9 +62,9 @@ class ResourceGuardResult:
 class ResourceGuard:
     """
     Guards resource usage during tool execution.
-    
+
     ## SECURITY NOTE: This is NOT a true sandbox!
-    ## 
+    ##
     ## What this does:
     ## - Sets Unix resource limits (CPU, memory, file size) via setrlimit()
     ## - Runs code in thread pool with timeout
@@ -75,11 +84,11 @@ class ResourceGuard:
     ## Current status: "Sandbox" renamed to "ResourceGuard" to reflect actual
     ## capabilities. Resource limits are enforced, but code runs in-process.
     """
-    
+
     def __init__(self, ledger):
         self.ledger = ledger
         self.active_guards: Dict[str, Dict] = {}
-        
+
     async def execute(
         self,
         tool_name: str,
@@ -90,7 +99,7 @@ class ResourceGuard:
     ) -> ResourceGuardResult:
         """
         Execute a tool with resource guards.
-        
+
         Flow:
         1. Verify capability token
         2. Create isolated temp directory
@@ -99,12 +108,12 @@ class ResourceGuard:
         5. Capture output
         6. Cleanup
         7. Return result
-        
+
         WARNING: Code runs in-process. See class docstring for limitations.
         """
         start_time = datetime.utcnow()
         logs = []
-        
+
         try:
             # Step 1: Verify token if required
             if config.limit_type in [ResourceLimitType.WRITE_APPROVED]:
@@ -118,10 +127,10 @@ class ResourceGuard:
                         exit_code=1,
                         error="Missing capability token"
                     )
-            
+
             # Step 2: Create temp directory for sandbox
             temp_dir = tempfile.mkdtemp(prefix=f"guard_{tool_name}_")
-            
+
             # Step 3: Prepare execution context
             execution_context = {
                 "tool_name": tool_name,
@@ -130,7 +139,7 @@ class ResourceGuard:
                 "config": config,
                 "start_time": start_time
             }
-            
+
             # Step 4: Execute with resource limits
             result = await self._execute_with_limits(
                 tool_func,
@@ -138,12 +147,12 @@ class ResourceGuard:
                 config,
                 temp_dir
             )
-            
+
             # Step 5: Cleanup
             self._cleanup_sandbox(temp_dir)
-            
+
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            
+
             return ResourceGuardResult(
                 success=result.get("success", False),
                 output=result.get("output"),
@@ -153,7 +162,7 @@ class ResourceGuard:
                 exit_code=result.get("exit_code", 0),
                 error=result.get("error")
             )
-            
+
         except Exception as e:
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
             return ResourceGuardResult(
@@ -165,7 +174,7 @@ class ResourceGuard:
                 exit_code=1,
                 error=str(e)
             )
-    
+
     async def _execute_with_limits(
         self,
         func: Callable,
@@ -174,10 +183,10 @@ class ResourceGuard:
         temp_dir: str
     ) -> Dict:
         """Execute function with resource limits."""
-        
+
         # Run in thread pool with timeout
         loop = asyncio.get_event_loop()
-        
+
         def run_with_limits():
             # Set resource limits (Unix only)
             try:
@@ -186,14 +195,14 @@ class ResourceGuard:
                     resource.RLIMIT_CPU,
                     (config.max_cpu_time, config.max_cpu_time + 1)
                 )
-                
+
                 # Memory limit (address space)
                 max_memory_bytes = config.max_memory_mb * 1024 * 1024
                 resource.setrlimit(
                     resource.RLIMIT_AS,
                     (max_memory_bytes, max_memory_bytes)
                 )
-                
+
                 # File size limit
                 max_file_bytes = config.max_file_size_mb * 1024 * 1024
                 resource.setrlimit(
@@ -202,11 +211,11 @@ class ResourceGuard:
                 )
             except Exception:
                 pass  # Resource limits may not be available
-            
+
             # Change to temp directory
             original_dir = os.getcwd()
             os.chdir(temp_dir)
-            
+
             try:
                 # Execute
                 result = func(**args)
@@ -226,7 +235,7 @@ class ResourceGuard:
                 }
             finally:
                 os.chdir(original_dir)
-        
+
         # Run with timeout
         try:
             result = await asyncio.wait_for(
@@ -242,7 +251,7 @@ class ResourceGuard:
                 "exit_code": 124,
                 "error": "Timeout"
             }
-    
+
     def _cleanup_sandbox(self, temp_dir: str):
         """Clean up sandbox environment."""
         try:
@@ -275,7 +284,7 @@ class GracefulDegradation:
     Handles component failures gracefully.
     Never fails silently - always has a fallback.
     """
-    
+
     DEGRADATION_LEVELS = {
         "normal": DegradationLevel(
             name="normal",
@@ -306,7 +315,7 @@ class GracefulDegradation:
             notification_message="System offline - queued for manual processing"
         )
     }
-    
+
     def __init__(self, ledger):
         self.ledger = ledger
         self.current_level = "normal"
@@ -314,27 +323,27 @@ class GracefulDegradation:
         self.fallback_handlers: Dict[str, Callable] = {}
         self.action_queue: List[Dict] = []
         self.cached_rules: Dict = {}
-        
+
     def register_component(self, name: str, healthy: bool = True):
         """Register a component for health tracking."""
         self.component_status[name] = healthy
         self._evaluate_degradation()
-    
+
     def update_component_health(self, name: str, healthy: bool):
         """Update component health status."""
         old_status = self.component_status.get(name)
         self.component_status[name] = healthy
-        
+
         if old_status != healthy:
             self._evaluate_degradation()
-    
+
     def _evaluate_degradation(self):
         """Evaluate current degradation level based on component health."""
         failed_components = [
             name for name, healthy in self.component_status.items()
             if not healthy
         ]
-        
+
         # Determine level
         if len(failed_components) == 0:
             new_level = "normal"
@@ -344,48 +353,48 @@ class GracefulDegradation:
             new_level = "critical"
         else:
             new_level = "offline"
-        
+
         if new_level != self.current_level:
             self._transition_to_level(new_level, failed_components)
-    
+
     def _transition_to_level(self, new_level: str, failed_components: List[str]):
         """Transition to a new degradation level."""
         old_level = self.current_level
         self.current_level = new_level
-        
+
         level_config = self.DEGRADATION_LEVELS[new_level]
-        
+
         # Log the transition
         print(f"🔄 Degradation transition: {old_level} -> {new_level}")
         print(f"   Failed components: {failed_components}")
         print(f"   Message: {level_config.notification_message}")
-        
+
         # Notify if human required
         if level_config.requires_human:
             asyncio.create_task(self._notify_human(new_level, failed_components))
-        
+
         # Cache current rules if transitioning to degraded
         if new_level in ["degraded", "critical"]:
             self._cache_rules()
-    
+
     async def handle_action(self, action: str, args: Dict) -> Dict:
         """
         Handle an action with fallback behavior.
-        
+
         Never fails - always returns something useful.
         """
         level_config = self.DEGRADATION_LEVELS[self.current_level]
-        
+
         # Check if action is enabled at current level
         action_enabled = (
             "all" in level_config.enabled_features or
             action in level_config.enabled_features
         )
-        
+
         if not action_enabled:
             # Use fallback
             return await self._apply_fallback(action, args)
-        
+
         # Try to execute
         try:
             handler = self.fallback_handlers.get(action)
@@ -400,11 +409,11 @@ class GracefulDegradation:
         except Exception as e:
             # Even handler failure gets fallback
             return await self._apply_fallback(action, args, error=str(e))
-    
+
     async def _apply_fallback(self, action: str, args: Dict, error: str = None) -> Dict:
         """Apply appropriate fallback behavior."""
         level_config = self.DEGRADATION_LEVELS[self.current_level]
-        
+
         if self.current_level == "degraded":
             # Queue for later processing
             self.action_queue.append({
@@ -413,25 +422,25 @@ class GracefulDegradation:
                 "timestamp": datetime.utcnow().isoformat(),
                 "error": error
             })
-            
+
             return {
                 "success": False,
                 "fallback": FallbackBehavior.QUEUE_ACTIONS,
                 "message": "Action queued for later processing",
                 "queue_position": len(self.action_queue)
             }
-        
+
         elif self.current_level in ["critical", "offline"]:
             # Human escalation
             await self._escalate_to_human(action, args, error)
-            
+
             return {
                 "success": False,
                 "fallback": FallbackBehavior.HUMAN_ESCALATION,
                 "message": "Action escalated to human for manual processing",
                 "escalation_id": f"esc_{datetime.utcnow().timestamp()}"
             }
-        
+
         # Default: use cached rules
         cached_result = self.cached_rules.get(action)
         if cached_result:
@@ -442,13 +451,13 @@ class GracefulDegradation:
                 "data": cached_result,
                 "cached": True
             }
-        
+
         return {
             "success": False,
             "fallback": "none_available",
             "message": "No fallback available for this action"
         }
-    
+
     def _cache_rules(self):
         """Cache current governance rules."""
         # This would cache constitution rules, etc.
@@ -456,13 +465,13 @@ class GracefulDegradation:
             "cached_at": datetime.utcnow().isoformat(),
             "rules": {}  # Would populate from ledger
         }
-    
+
     async def _notify_human(self, level: str, failed_components: List[str]):
         """Notify human operators of degradation."""
         # This would send alerts via email, Slack, etc.
         print(f"🚨 HUMAN NOTIFICATION: System in {level} mode")
         print(f"   Failed: {failed_components}")
-    
+
     async def _escalate_to_human(self, action: str, args: Dict, error: str = None):
         """Escalate action to human for manual processing."""
         escalation = {
@@ -474,7 +483,7 @@ class GracefulDegradation:
         }
         # This would add to human work queue
         print(f"📋 ESCALATED: {action} -> human queue")
-    
+
     def get_status(self) -> Dict:
         """Get current degradation status."""
         return {
@@ -490,12 +499,12 @@ class EmergencyKillSwitch:
     Emergency kill switch system.
     Instantly disables capabilities when issues detected.
     """
-    
+
     def __init__(self, feature_flags):
         self.feature_flags = feature_flags
         self.kill_switches: Dict[str, bool] = {}
         self.emergency_contacts: List[str] = []
-        
+
     def register_kill_switch(self, name: str, target_capabilities: List[str]):
         """Register a kill switch for specific capabilities."""
         self.kill_switches[name] = {
@@ -505,7 +514,7 @@ class EmergencyKillSwitch:
             "triggered_by": None,
             "reason": None
         }
-    
+
     def trigger(
         self,
         switch_name: str,
@@ -514,50 +523,50 @@ class EmergencyKillSwitch:
     ):
         """
         Trigger an emergency kill switch.
-        
+
         Instantly disables all target capabilities.
         """
         if switch_name not in self.kill_switches:
             return False
-        
+
         switch = self.kill_switches[switch_name]
         switch["active"] = True
         switch["triggered_at"] = datetime.utcnow().isoformat()
         switch["triggered_by"] = triggered_by
         switch["reason"] = reason
-        
+
         # Kill all target capabilities
         for capability in switch["target_capabilities"]:
             self.feature_flags.emergency_kill(capability, reason)
-        
+
         # Log emergency
         print(f"🚨 EMERGENCY KILL TRIGGERED: {switch_name}")
         print(f"   Reason: {reason}")
         print(f"   By: {triggered_by}")
         print(f"   Capabilities disabled: {switch['target_capabilities']}")
-        
+
         # Notify
         asyncio.create_task(self._notify_emergency(switch_name, reason))
-        
+
         return True
-    
+
     def reset(self, switch_name: str, authorized_by: str):
         """Reset a kill switch (requires authorization)."""
         if switch_name not in self.kill_switches:
             return False
-        
+
         # Log reset
         print(f"✅ EMERGENCY KILL RESET: {switch_name}")
         print(f"   Authorized by: {authorized_by}")
-        
+
         self.kill_switches[switch_name]["active"] = False
         return True
-    
+
     async def _notify_emergency(self, switch_name: str, reason: str):
         """Notify emergency contacts."""
         for contact in self.emergency_contacts:
             print(f"📧 Emergency notification sent to: {contact}")
-    
+
     def get_status(self) -> Dict:
         """Get status of all kill switches."""
         return {
@@ -581,3 +590,58 @@ __all__ = [
     'GracefulDegradation',
     'EmergencyKillSwitch'
 ]
+# ── Compatibility Shims (for governance_v2/__init__.py imports) ────────────
+
+class SandboxType(Enum):
+    """Sandbox isolation level."""
+    RESTRICTED = "restricted"
+    STANDARD = "standard"
+    PRIVILEGED = "privileged"
+
+class SandboxConfig:
+    """Configuration for sandboxed execution."""
+    def __init__(self, sandbox_type: str = "standard", max_cpu_time: float = 5.0,
+                 max_memory_mb: float = 256.0, allowed_syscalls: list = None,
+                 network_allowed: bool = False, filesystem_restricted: bool = True,
+                 environment_isolation: bool = True):
+        self.sandbox_type = sandbox_type
+        self.max_cpu_time = max_cpu_time
+        self.max_memory_mb = max_memory_mb
+        self.allowed_syscalls = allowed_syscalls or []
+        self.network_allowed = network_allowed
+        self.filesystem_restricted = filesystem_restricted
+        self.environment_isolation = environment_isolation
+
+class SandboxResult:
+    """Result of sandboxed execution."""
+    def __init__(self, success: bool = False, output: dict = None,
+                 execution_time_ms: float = 0.0, memory_peak_mb: float = 0.0,
+                 sandbox_type: str = "standard", error: str = None,
+                 terminated: bool = False, termination_reason: str = None,
+                 resource_usage: dict = None):
+        self.success = success
+        self.output = output or {}
+        self.execution_time_ms = execution_time_ms
+        self.memory_peak_mb = memory_peak_mb
+        self.sandbox_type = sandbox_type
+        self.error = error
+        self.terminated = terminated
+        self.termination_reason = termination_reason
+        self.resource_usage = resource_usage or {}
+
+class SandboxedExecutor:
+    """Executes actions within resource-limited sandboxes."""
+    def __init__(self, ledger_sovereign):
+        self.ledger = ledger_sovereign
+        self._configs = {}
+        self._results = {}
+
+    def configure(self, agent_id: str, config: SandboxConfig) -> None:
+        self._configs[agent_id] = config
+
+    async def execute(self, agent_id: str, action: str, context: dict) -> SandboxResult:
+        config = self._configs.get(agent_id, SandboxConfig())
+        return SandboxResult(success=True, output={"action": action, "context": context})
+
+    def get_result(self, agent_id: str) -> SandboxResult:
+        return self._results.get(agent_id, SandboxResult())

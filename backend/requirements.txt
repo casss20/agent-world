@@ -7,6 +7,7 @@ pydantic==2.5.0
 # Database
 sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
+asyncpg>=0.29.0       # Async PostgreSQL driver
 alembic==1.13.1
 
 # Utilities

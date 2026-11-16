@@ -18,7 +18,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, or_, func
 
 from pydantic import BaseModel, Field
+import redis
 import redis.asyncio as redis_async
+
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
+from infrastructure.interfaces.base_queue_provider import BaseQueueProvider
 
 # Import actual models
 from models import (
@@ -95,7 +99,7 @@ class TaskClaimResponse(BaseModel):
     lease_expires: Optional[datetime] = None
 
 class RoomJoinRequest(BaseModel):
-    role: str = Field(default="member", regex="^(member|moderator|owner)$")
+    role: str = Field(default="member", pattern="^(member|moderator|owner)$")
     agent_id: Optional[UUID] = None  # For assigning another agent
 
 class RoomJoinResponse(BaseModel):
@@ -108,7 +112,7 @@ class RoomJoinResponse(BaseModel):
 class BlackboardWriteRequest(BaseModel):
     key: str = Field(..., min_length=1, max_length=255)
     value: dict
-    operation: str = Field(default="set", regex="^(set|delete|append)$")
+    operation: str = Field(default="set", pattern="^(set|delete|append)$")
     expected_version: Optional[int] = None  # For optimistic locking
 
 class BlackboardWriteResponse(BaseModel):
@@ -822,7 +826,7 @@ async def create_agent(
     current_user = Depends(get_current_user),  # Note: requires user, not agent
     current_business = Depends(get_current_business),
     ledger = Depends(get_ledger),
-    background_tasks: BackgroundTasks,
+    background_tasks: BackgroundTasks = None,
 ):
     """
     Create new agent with governance approval and capability validation.

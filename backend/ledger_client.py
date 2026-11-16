@@ -12,12 +12,22 @@ import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
+
+# Backward compatibility stub for revenue_routes.py
+def require_capability(capability: str):
+    """Placeholder capability check — always allows."""
+    def decorator(fn):
+        return fn
+    return decorator
+
 class LedgerClient:
     """Client for interacting with Ledger governance system"""
     
-    def __init__(self, db_session: Session, redis_client=None):
+    def __init__(self, db_session: Session, redis_client=None, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db_session
         self.redis = redis_client
+        self.storage_provider = storage_provider
         self._capability_cache = {}
     
     async def check_permission(

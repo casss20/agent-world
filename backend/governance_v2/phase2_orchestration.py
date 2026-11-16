@@ -538,6 +538,9 @@ class AutoGovernor:
 
 
 # Export
+# Compatibility alias
+GovernancePhase2 = AutoGovernor
+
 __all__ = [
     'AgentCapability',
     'AgentRegistration',
@@ -546,5 +549,5 @@ __all__ = [
     'Task',
     'ChiefOfStaff',
     'ScheduledJob',
-    'AutoGovernor'
+    'AutoGovernor', 'GovernancePhase2'
 ]

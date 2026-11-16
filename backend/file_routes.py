@@ -7,17 +7,27 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import boto3
-import cloudinary
-import cloudinary.uploader
-from cloudinary.utils import cloudinary_url
 import uuid
 import os
 from datetime import datetime
+
+# Optional cloudinary import
+try:
+    import cloudinary
+    import cloudinary.uploader
+    from cloudinary.utils import cloudinary_url
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    CLOUDINARY_AVAILABLE = False
+    cloudinary = None  # type: ignore
+    cloudinary_url = None  # type: ignore
 
 # Import models
 from database import get_db
 from sqlalchemy.orm import Session
 from models import Asset, Business, AuditLog
+
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 # Import auth
 from auth import get_current_user
@@ -30,381 +40,380 @@ S3_REGION = os.getenv("AWS_REGION", "us-east-1")
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
-UPLOAD_PROVIDER = os.getenv("UPLOAD_PROVIDER", "s3")  # 's3' or 'cloudinary'
 
 # Initialize Cloudinary if configured
-if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+if CLOUDINARY_AVAILABLE and CLOUDINARY_CLOUD_NAME:
     cloudinary.config(
         cloud_name=CLOUDINARY_CLOUD_NAME,
         api_key=CLOUDINARY_API_KEY,
         api_secret=CLOUDINARY_API_SECRET,
-        secure=True
     )
 
-# Initialize S3 client
-s3_client = boto3.client(
-    's3',
-    region_name=S3_REGION,
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
-)
+# ── S3 Client ─────────────────────────────────────────────────────────────────
+s3_client = boto3.client("s3", region_name=S3_REGION)
 
 
-class AssetUploadResponse(BaseModel):
-    id: str
-    filename: str
+# ── Pydantic Models ───────────────────────────────────────────────────────────
+class FileUploadResponse(BaseModel):
+    file_id: str
     url: str
-    thumbnail_url: Optional[str]
-    type: str
-    size: int
+    public_url: Optional[str]
+    mime_type: str
+    size_bytes: int
+    uploaded_by: str
+    uploaded_at: datetime
+    provider: str  # "s3" or "cloudinary"
     status: str
-    created_at: str
 
 
-class AssetListResponse(BaseModel):
-    assets: List[dict]
+class FileListResponse(BaseModel):
+    files: List[dict]
     total: int
+    business_id: str
 
 
-@router.post("/upload", response_model=AssetUploadResponse)
+class FileUpdateRequest(BaseModel):
+    name: Optional[str]
+    tags: Optional[List[str]]
+    metadata: Optional[dict]
+
+
+class FileDeleteResponse(BaseModel):
+    file_id: str
+    status: str
+    deleted_at: datetime
+
+
+# ── Upload Endpoints ──────────────────────────────────────────────────────────
+
+@router.post("/upload", response_model=FileUploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
     business_id: str = Form(...),
-    asset_type: str = Form("content"),  # content, thumbnail, logo, etc.
-    description: Optional[str] = Form(None),
+    tags: Optional[str] = Form(None),  # comma-separated
+    upload_provider: str = Form("s3"),  # "s3" or "cloudinary"
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
-    """
-    Upload a file to S3 or Cloudinary and create asset record
-    """
-    # Verify business ownership
-    business = db.query(Business).filter(
-        Business.id == business_id,
-        Business.owner_id == current_user["id"]
-    ).first()
+    """Upload a file to S3 or Cloudinary"""
     
-    if not business:
-        raise HTTPException(status_code=403, detail="Access denied")
+    file_id = str(uuid.uuid4())
+    file_content = await file.read()
+    file_size = len(file_content)
+    mime_type = file.content_type or "application/octet-stream"
     
-    # Generate unique filename
-    file_ext = file.filename.split('.')[-1].lower()
-    unique_id = str(uuid.uuid4())
-    safe_filename = f"{unique_id}.{file_ext}"
+    # Generate filename
+    original_name = file.filename or "unnamed"
+    file_extension = os.path.splitext(original_name)[1]
+    storage_key = f"{business_id}/{file_id}{file_extension}"
     
-    # Read file content
-    content = await file.read()
-    file_size = len(content)
+    url = None
+    public_url = None
+    provider_used = upload_provider
     
-    # Upload based on provider
-    if UPLOAD_PROVIDER == "cloudinary" and CLOUDINARY_CLOUD_NAME:
-        result = await upload_to_cloudinary(content, safe_filename, file.content_type)
-    else:
-        result = await upload_to_s3(content, safe_filename, file.content_type)
+    try:
+        if upload_provider == "cloudinary" and CLOUDINARY_AVAILABLE:
+            # Upload to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                file_content,
+                public_id=file_id,
+                folder=business_id,
+                resource_type="auto",
+            )
+            url = upload_result["secure_url"]
+            public_url = upload_result.get("url")
+            provider_used = "cloudinary"
+            
+        else:
+            # Upload to S3
+            s3_client.put_object(
+                Bucket=S3_BUCKET,
+                Key=storage_key,
+                Body=file_content,
+                ContentType=mime_type,
+                Metadata={
+                    "uploaded_by": current_user.get("id", "unknown"),
+                    "original_name": original_name,
+                    "business_id": business_id,
+                },
+            )
+            url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{storage_key}"
+            public_url = url
+            provider_used = "s3"
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
-    # Create asset record
+    # Save to database
     asset = Asset(
-        id=unique_id,
+        id=file_id,
         business_id=business_id,
-        filename=file.filename,
-        storage_path=result["path"],
-        public_url=result["url"],
-        thumbnail_url=result.get("thumbnail_url"),
-        type=asset_type,
-        mime_type=file.content_type,
+        name=original_name,
+        url=url,
+        public_url=public_url,
+        mime_type=mime_type,
         size_bytes=file_size,
-        status="pending_review",
-        uploaded_by=current_user["id"],
-        description=description,
+        provider=provider_used,
+        storage_key=storage_key if provider_used == "s3" else None,
+        uploaded_by=current_user.get("id", "unknown"),
+        tags=tags.split(",") if tags else [],
+        status="active",
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     )
-    
     db.add(asset)
     
-    # Create audit log
-    audit_log = AuditLog(
+    # Audit log
+    audit = AuditLog(
         id=str(uuid.uuid4()),
-        business_id=business_id,
-        action="asset_uploaded",
-        actor_id=current_user["id"],
+        action="file_uploaded",
+        actor_id=current_user.get("id", "unknown"),
+        target_id=file_id,
         details={
-            "asset_id": unique_id,
-            "filename": file.filename,
-            "size": file_size,
-            "type": asset_type
+            "business_id": business_id,
+            "provider": provider_used,
+            "size_bytes": file_size,
+            "mime_type": mime_type,
         },
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
-    db.add(audit_log)
+    db.add(audit)
     db.commit()
     
-    return AssetUploadResponse(
-        id=unique_id,
-        filename=file.filename,
-        url=result["url"],
-        thumbnail_url=result.get("thumbnail_url"),
-        type=asset_type,
-        size=file_size,
-        status="pending_review",
-        created_at=asset.created_at.isoformat()
+    return FileUploadResponse(
+        file_id=file_id,
+        url=url,
+        public_url=public_url,
+        mime_type=mime_type,
+        size_bytes=file_size,
+        uploaded_by=current_user.get("id", "unknown"),
+        uploaded_at=datetime.utcnow(),
+        provider=provider_used,
+        status="active",
     )
 
 
-async def upload_to_cloudinary(content: bytes, filename: str, content_type: str):
-    """Upload to Cloudinary with automatic optimization"""
-    import io
-    
-    # Determine resource type
-    resource_type = "image" if content_type.startswith("image/") else "raw"
-    
-    # Upload
-    result = cloudinary.uploader.upload(
-        io.BytesIO(content),
-        public_id=filename.split('.')[0],
-        resource_type=resource_type,
-        folder="agent-world/assets",
-        overwrite=False
-    )
-    
-    # Generate optimized URL
-    if resource_type == "image":
-        thumbnail_url, _ = cloudinary_url(
-            result["public_id"],
-            width=300,
-            height=300,
-            crop="fit",
-            quality="auto"
+@router.post("/upload-multiple", response_model=List[FileUploadResponse])
+async def upload_multiple_files(
+    files: List[UploadFile] = File(...),
+    business_id: str = Form(...),
+    tags: Optional[str] = Form(None),
+    upload_provider: str = Form("s3"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload multiple files at once"""
+    responses = []
+    for file in files:
+        result = await upload_file(
+            file=file,
+            business_id=business_id,
+            tags=tags,
+            upload_provider=upload_provider,
+            db=db,
+            current_user=current_user,
         )
-    else:
-        thumbnail_url = None
-    
-    return {
-        "path": result["public_id"],
-        "url": result["secure_url"],
-        "thumbnail_url": thumbnail_url
-    }
+        responses.append(result)
+    return responses
 
 
-async def upload_to_s3(content: bytes, filename: str, content_type: str):
-    """Upload to S3 with presigned URL generation"""
-    s3_key = f"assets/{filename}"
-    
-    # Upload
-    s3_client.put_object(
-        Bucket=S3_BUCKET,
-        Key=s3_key,
-        Body=content,
-        ContentType=content_type,
-        Metadata={
-            "original-filename": filename
-        }
-    )
-    
-    # Generate presigned URL (valid for 1 week)
-    url = s3_client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': S3_BUCKET, 'Key': s3_key},
-        ExpiresIn=604800
-    )
-    
-    # Generate thumbnail URL for images
-    thumbnail_url = None
-    if content_type.startswith("image/"):
-        # For images, we could use S3 + Lambda@Edge or just return the same URL
-        # In production, you'd want a thumbnail service
-        thumbnail_url = url  # Simplified - same URL for now
-    
-    return {
-        "path": s3_key,
-        "url": url,
-        "thumbnail_url": thumbnail_url
-    }
+# ── List & Get Endpoints ────────────────────────────────────────────────────
 
-
-@router.get("/business/{business_id}", response_model=AssetListResponse)
-async def list_business_assets(
+@router.get("/business/{business_id}", response_model=FileListResponse)
+async def list_business_files(
     business_id: str,
-    asset_type: Optional[str] = None,
-    status: Optional[str] = None,
-    search: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
+    status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
-    """
-    List assets for a business with filtering
-    """
-    # Verify business ownership
-    business = db.query(Business).filter(
-        Business.id == business_id,
-        Business.owner_id == current_user["id"]
-    ).first()
+    """List all files for a business"""
     
-    if not business:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # Build query
     query = db.query(Asset).filter(Asset.business_id == business_id)
-    
-    if asset_type:
-        query = query.filter(Asset.type == asset_type)
     
     if status:
         query = query.filter(Asset.status == status)
     
-    if search:
-        query = query.filter(Asset.filename.ilike(f"%{search}%"))
-    
     total = query.count()
-    assets = query.order_by(Asset.created_at.desc()).offset(offset).limit(limit).all()
+    files = query.order_by(Asset.created_at.desc()).offset(offset).limit(limit).all()
     
-    return AssetListResponse(
-        assets=[{
-            "id": a.id,
-            "filename": a.filename,
-            "url": a.public_url,
-            "thumbnail_url": a.thumbnail_url,
-            "type": a.type,
-            "status": a.status,
-            "size": a.size_bytes,
-            "created_at": a.created_at.isoformat(),
-            "tags": a.tags or []
-        } for a in assets],
-        total=total
+    return FileListResponse(
+        files=[
+            {
+                "file_id": f.id,
+                "name": f.name,
+                "url": f.url,
+                "mime_type": f.mime_type,
+                "size_bytes": f.size_bytes,
+                "provider": f.provider,
+                "status": f.status,
+                "uploaded_at": f.created_at,
+                "tags": f.tags,
+            }
+            for f in files
+        ],
+        total=total,
+        business_id=business_id,
     )
 
 
-@router.post("/{asset_id}/approve")
-async def approve_asset(
-    asset_id: str,
+@router.get("/{file_id}", response_model=FileUploadResponse)
+async def get_file(
+    file_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
-    """
-    Approve an asset for use (triggers agent notification)
-    """
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    """Get a specific file"""
     
+    asset = db.query(Asset).filter(Asset.id == file_id).first()
     if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
+        raise HTTPException(status_code=404, detail="File not found")
     
-    # Verify business ownership
-    business = db.query(Business).filter(
-        Business.id == asset.business_id,
-        Business.owner_id == current_user["id"]
-    ).first()
+    return FileUploadResponse(
+        file_id=asset.id,
+        url=asset.url,
+        public_url=asset.public_url,
+        mime_type=asset.mime_type,
+        size_bytes=asset.size_bytes,
+        uploaded_by=asset.uploaded_by,
+        uploaded_at=asset.created_at,
+        provider=asset.provider,
+        status=asset.status,
+    )
+
+
+# ── Update & Delete Endpoints ────────────────────────────────────────────────
+
+@router.patch("/{file_id}", response_model=FileUploadResponse)
+async def update_file(
+    file_id: str,
+    update: FileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Update file metadata"""
     
-    if not business:
-        raise HTTPException(status_code=403, detail="Access denied")
+    asset = db.query(Asset).filter(Asset.id == file_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="File not found")
     
-    asset.status = "approved"
+    if update.name:
+        asset.name = update.name
+    if update.tags is not None:
+        asset.tags = update.tags
+    if update.metadata:
+        asset.metadata = update.metadata
+    
     asset.updated_at = datetime.utcnow()
     
-    # Create audit log
-    audit_log = AuditLog(
+    # Audit log
+    audit = AuditLog(
         id=str(uuid.uuid4()),
-        business_id=asset.business_id,
-        action="asset_approved",
-        actor_id=current_user["id"],
-        details={"asset_id": asset_id, "filename": asset.filename},
-        created_at=datetime.utcnow()
+        action="file_updated",
+        actor_id=current_user.get("id", "unknown"),
+        target_id=file_id,
+        details={"fields_updated": list(update.dict(exclude_none=True).keys())},
+        created_at=datetime.utcnow(),
     )
-    db.add(audit_log)
+    db.add(audit)
     db.commit()
     
-    return {"status": "approved", "asset_id": asset_id}
+    return FileUploadResponse(
+        file_id=asset.id,
+        url=asset.url,
+        public_url=asset.public_url,
+        mime_type=asset.mime_type,
+        size_bytes=asset.size_bytes,
+        uploaded_by=asset.uploaded_by,
+        uploaded_at=asset.created_at,
+        provider=asset.provider,
+        status=asset.status,
+    )
 
 
-@router.delete("/{asset_id}")
-async def delete_asset(
-    asset_id: str,
+@router.delete("/{file_id}", response_model=FileDeleteResponse)
+async def delete_file(
+    file_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
-    """
-    Delete an asset from storage and database
-    """
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    """Delete a file (soft delete from DB + remove from storage)"""
     
+    asset = db.query(Asset).filter(Asset.id == file_id).first()
     if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
-    # Verify business ownership
-    business = db.query(Business).filter(
-        Business.id == asset.business_id,
-        Business.owner_id == current_user["id"]
-    ).first()
-    
-    if not business:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=404, detail="File not found")
     
     # Delete from storage
     try:
-        if UPLOAD_PROVIDER == "cloudinary":
-            cloudinary.uploader.destroy(asset.storage_path)
-        else:
-            s3_client.delete_object(Bucket=S3_BUCKET, Key=asset.storage_path)
+        if asset.provider == "s3" and asset.storage_key:
+            s3_client.delete_object(Bucket=S3_BUCKET, Key=asset.storage_key)
+        elif asset.provider == "cloudinary" and CLOUDINARY_AVAILABLE:
+            cloudinary.uploader.destroy(asset.id)
     except Exception as e:
-        # Log error but continue to delete DB record
-        print(f"Error deleting from storage: {e}")
+        # Log but continue - file might already be gone
+        print(f"Storage delete warning: {e}")
     
-    # Create audit log before deletion
-    audit_log = AuditLog(
-        id=str(uuid.uuid4()),
-        business_id=asset.business_id,
-        action="asset_deleted",
-        actor_id=current_user["id"],
-        details={"asset_id": asset_id, "filename": asset.filename},
-        created_at=datetime.utcnow()
-    )
-    db.add(audit_log)
-    
-    # Delete from database
-    db.delete(asset)
-    db.commit()
-    
-    return {"status": "deleted", "asset_id": asset_id}
-
-
-@router.patch("/{asset_id}")
-async def update_asset(
-    asset_id: str,
-    tags: Optional[List[str]] = None,
-    description: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Update asset metadata (tags, description)
-    """
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
-    
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
-    # Verify business ownership
-    business = db.query(Business).filter(
-        Business.id == asset.business_id,
-        Business.owner_id == current_user["id"]
-    ).first()
-    
-    if not business:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    if tags is not None:
-        asset.tags = tags
-    
-    if description is not None:
-        asset.description = description
-    
+    # Soft delete in DB
+    asset.status = "deleted"
     asset.updated_at = datetime.utcnow()
+    
+    # Audit log
+    audit = AuditLog(
+        id=str(uuid.uuid4()),
+        action="file_deleted",
+        actor_id=current_user.get("id", "unknown"),
+        target_id=file_id,
+        details={"provider": asset.provider, "storage_key": asset.storage_key},
+        created_at=datetime.utcnow(),
+    )
+    db.add(audit)
     db.commit()
     
-    return {
-        "id": asset.id,
-        "tags": asset.tags,
-        "description": asset.description,
-        "updated_at": asset.updated_at.isoformat()
-    }
+    return FileDeleteResponse(
+        file_id=file_id,
+        status="deleted",
+        deleted_at=datetime.utcnow(),
+    )
+
+
+# ── Signed URL Endpoints ────────────────────────────────────────────────────
+
+@router.get("/{file_id}/signed-url")
+async def get_signed_url(
+    file_id: str,
+    expires_in: int = 3600,  # seconds
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get a presigned URL for temporary access"""
+    
+    asset = db.query(Asset).filter(Asset.id == file_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    if asset.provider == "s3":
+        try:
+            signed_url = s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": S3_BUCKET, "Key": asset.storage_key},
+                ExpiresIn=expires_in,
+            )
+            return {"signed_url": signed_url, "expires_in": expires_in}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate signed URL: {str(e)}")
+    
+    elif asset.provider == "cloudinary" and CLOUDINARY_AVAILABLE:
+        try:
+            url, options = cloudinary_url(
+                asset.id,
+                secure=True,
+                sign_url=True,
+                expiration=expires_in,
+            )
+            return {"signed_url": url, "expires_in": expires_in}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate signed URL: {str(e)}")
+    
+    else:
+        return {"url": asset.url, "note": "Provider does not support signed URLs"}

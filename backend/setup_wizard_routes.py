@@ -16,6 +16,7 @@ from business_config import (
     AdsSelectionStep, MetaAdsAuthStep, PreferencesStep
 )
 from models import Business, get_db
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 router = APIRouter(prefix="/setup", tags=["setup-wizard"])
 

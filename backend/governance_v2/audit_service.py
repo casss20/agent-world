@@ -15,8 +15,8 @@ try:
     import asyncpg
     ASYNCPG_AVAILABLE = True
 except ImportError:
-    ASYNCPG_AVAILABLE = False
     asyncpg = None
+
 
 # Database URL from environment
 DATABASE_URL = os.getenv(
@@ -387,3 +387,6 @@ def set_request_id(request_id: str):
 def get_request_id() -> Optional[str]:
     """Get current request ID from context"""
     return request_id_context.get()
+
+# Compatibility alias for governance_v2 imports
+AuditService = AuditLogService

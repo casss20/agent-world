@@ -26,15 +26,23 @@ from models      import (
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL  = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/agentworld")
+DATABASE_URL  = os.getenv("DATABASE_URL", "sqlite:///./agentworld.db")
 POLL_INTERVAL = float(os.getenv("EXECUTOR_POLL_INTERVAL", "3"))   # seconds
 LEASE_TTL     = int(os.getenv("EXECUTOR_LEASE_TTL", "120"))        # seconds
 
-_engine  = create_engine(DATABASE_URL, pool_pre_ping=True)
-_Session = sessionmaker(bind=_engine)
+# Lazy engine creation
+try:
+    _engine  = create_engine(DATABASE_URL, pool_pre_ping=True)
+    _Session = sessionmaker(bind=_engine)
+except Exception as e:
+    logger.warning("Database engine creation failed: %s", e)
+    _engine = None
+    _Session = None
 
 
 def _get_db() -> Session:
+    if _Session is None:
+        raise RuntimeError("Database not available")
     return _Session()
 
 

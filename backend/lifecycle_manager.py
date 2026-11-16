@@ -16,6 +16,7 @@ from sqlalchemy import select, and_, or_
 
 from models import Agent, AgentSession, TaskQueue, AgentStatus, TaskStatus
 from observability import logger
+from infrastructure.interfaces.base_storage_provider import BaseStorageProvider
 
 # ============================================================================
 # LIFECYCLE STATES
@@ -73,9 +74,10 @@ class AgentLifecycleManager:
     - Signal handling for clean exits
     """
     
-    def __init__(self, db_session: Session, redis_client=None):
+    def __init__(self, db_session: Session, redis_client=None, storage_provider: Optional[BaseStorageProvider] = None):
         self.db = db_session
         self.redis = redis_client
+        self.storage_provider = storage_provider
         self.config = LifecycleConfig()
         
         # Track managed agents

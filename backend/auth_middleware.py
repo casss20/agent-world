@@ -13,6 +13,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from passlib.context import CryptContext
 
+from infrastructure.interfaces.base_auth_provider import BaseAuthProvider
+
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
@@ -28,7 +30,7 @@ security = HTTPBearer()
 class AuthMiddleware:
     """JWT Authentication middleware for FastAPI"""
     
-    def __init__(self, protected_paths: list = None):
+    def __init__(self, protected_paths: list = None, auth_provider: Optional[BaseAuthProvider] = None):
         self.protected_paths = protected_paths or [
             "/stateless/launch",
             "/stateless/cancel",
@@ -39,6 +41,7 @@ class AuthMiddleware:
             "/docs",
             "/openapi.json",
         ]
+        self.auth_provider = auth_provider
     
     async def __call__(self, request: Request, call_next):
         """Process request authentication"""
